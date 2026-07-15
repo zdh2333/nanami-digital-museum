@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { ArchiveItem } from '../src/archive/types'
+import { ArchiveViewer } from '../src/components/ArchiveViewer'
 import { MoodArchive } from '../src/components/MoodArchive'
 
 const items = [
@@ -125,5 +127,96 @@ describe('Mood archive viewer', () => {
 
     fireEvent.click(close)
     expect(document.body.style.overflow).toBe('clip')
+  })
+
+  it('keeps the same active item when the archive order changes', () => {
+    const { rerender } = renderArchive()
+    fireEvent.click(
+      screen.getByRole('button', { name: /view window watch/i }),
+    )
+
+    rerender(
+      <MoodArchive items={[items[1], items[0]]} staticExperience />,
+    )
+
+    expect(screen.getByRole('dialog', { name: 'Window watch.' })).toBeVisible()
+  })
+
+  it('closes safely when the active item is removed', () => {
+    const { rerender } = renderArchive()
+    fireEvent.click(
+      screen.getByRole('button', { name: /view window watch/i }),
+    )
+
+    rerender(<MoodArchive items={[items[1]]} staticExperience />)
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
+  it('keeps shared modal state locked and uses unique labels until the last viewer closes', () => {
+    function TwoViewers() {
+      const [firstOpen, setFirstOpen] = useState(true)
+      const [secondOpen, setSecondOpen] = useState(true)
+
+      return (
+        <>
+          {firstOpen ? (
+            <ArchiveViewer
+              items={items}
+              activeItemId={items[0].id}
+              onActiveItemChange={() => undefined}
+              onClose={() => setFirstOpen(false)}
+              returnFocusTo={null}
+            />
+          ) : null}
+          {secondOpen ? (
+            <ArchiveViewer
+              items={items}
+              activeItemId={items[1].id}
+              onActiveItemChange={() => undefined}
+              onClose={() => setSecondOpen(false)}
+              returnFocusTo={null}
+            />
+          ) : null}
+        </>
+      )
+    }
+
+    const root = document.createElement('div')
+    root.id = 'root'
+    document.body.append(root)
+    const { unmount } = render(<TwoViewers />, { container: root })
+    const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]')
+    const labelIds = Array.from(dialogs, (dialog) =>
+      dialog.getAttribute('aria-labelledby'),
+    )
+
+    expect(new Set(labelIds).size).toBe(2)
+    expect(root).toHaveAttribute('aria-hidden', 'true')
+    expect(root.inert).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    fireEvent.click(
+      document.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="Close archive viewer"]',
+      )[0],
+    )
+
+    expect(root).toHaveAttribute('aria-hidden', 'true')
+    expect(root.inert).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        '[aria-label="Close archive viewer"]',
+      )!,
+    )
+
+    expect(root).not.toHaveAttribute('aria-hidden')
+    expect(root.inert).toBe(false)
+    expect(document.body.style.overflow).not.toBe('hidden')
+    unmount()
+    root.remove()
   })
 })

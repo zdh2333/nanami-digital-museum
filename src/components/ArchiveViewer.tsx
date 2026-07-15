@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { ArchiveItem } from '../archive/types'
@@ -6,8 +6,8 @@ import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 type ArchiveViewerProps = {
   items: readonly ArchiveItem[]
-  activeIndex: number
-  onActiveIndexChange: (index: number) => void
+  activeItemId: string
+  onActiveItemChange: (id: string) => void
   onClose: () => void
   returnFocusTo: HTMLElement | null
 }
@@ -15,40 +15,68 @@ type ArchiveViewerProps = {
 const focusableSelector =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+let backgroundLockCount = 0
+let lockedRoot: HTMLElement | null = null
+let savedRootInert = false
+let savedRootAriaHidden: string | null = null
+
+function useModalBackgroundLock(locked: boolean) {
+  useEffect(() => {
+    if (!locked || typeof document === 'undefined') return
+
+    const root = document.getElementById('root')
+    if (!root) return
+
+    if (backgroundLockCount === 0) {
+      lockedRoot = root
+      savedRootInert = Boolean(root.inert)
+      savedRootAriaHidden = root.getAttribute('aria-hidden')
+      root.inert = true
+      root.setAttribute('aria-hidden', 'true')
+    }
+    backgroundLockCount += 1
+
+    return () => {
+      backgroundLockCount = Math.max(0, backgroundLockCount - 1)
+      if (backgroundLockCount !== 0 || !lockedRoot) return
+
+      lockedRoot.inert = savedRootInert
+      if (savedRootAriaHidden === null) lockedRoot.removeAttribute('aria-hidden')
+      else lockedRoot.setAttribute('aria-hidden', savedRootAriaHidden)
+      lockedRoot = null
+    }
+  }, [locked])
+}
+
 export function ArchiveViewer({
   items,
-  activeIndex,
-  onActiveIndexChange,
+  activeItemId,
+  onActiveItemChange,
   onClose,
   returnFocusTo,
 }: ArchiveViewerProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const returnFocusRef = useRef(returnFocusTo)
+  const reactId = useId()
+  const captionId = `archive-viewer-caption-${reactId.replace(/:/g, '')}`
+  const activeIndex = items.findIndex((candidate) => candidate.id === activeItemId)
   const item = items[activeIndex]
   const hasMultipleItems = items.length > 1
+  const isOpen = Boolean(item)
 
-  useBodyScrollLock(Boolean(item))
+  useBodyScrollLock(isOpen)
+  useModalBackgroundLock(isOpen)
 
   useEffect(() => {
-    const root = document.getElementById('root')
-    const wasInert = root?.inert ?? false
-    const previousAriaHidden = root ? root.getAttribute('aria-hidden') : null
-    if (root) {
-      root.inert = true
-      root.setAttribute('aria-hidden', 'true')
-    }
+    if (!isOpen) return
+
     closeRef.current?.focus()
     return () => {
-      if (root) {
-        root.inert = wasInert
-        if (previousAriaHidden === null) root.removeAttribute('aria-hidden')
-        else root.setAttribute('aria-hidden', previousAriaHidden)
-      }
       const target = returnFocusRef.current
       if (target?.isConnected) target.focus()
     }
-  }, [])
+  }, [isOpen])
 
   useEffect(() => {
     if (!item) {
@@ -58,7 +86,8 @@ export function ArchiveViewer({
 
     const move = (direction: number) => {
       if (!hasMultipleItems) return
-      onActiveIndexChange((activeIndex + direction + items.length) % items.length)
+      const nextIndex = (activeIndex + direction + items.length) % items.length
+      onActiveItemChange(items[nextIndex].id)
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -94,13 +123,14 @@ export function ArchiveViewer({
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, hasMultipleItems, item, items.length, onActiveIndexChange, onClose])
+  }, [activeIndex, hasMultipleItems, item, items, onActiveItemChange, onClose])
 
   if (!item || typeof document === 'undefined') return null
 
   const move = (direction: number) => {
     if (!hasMultipleItems) return
-    onActiveIndexChange((activeIndex + direction + items.length) % items.length)
+    const nextIndex = (activeIndex + direction + items.length) % items.length
+    onActiveItemChange(items[nextIndex].id)
   }
 
   return createPortal(
@@ -112,7 +142,7 @@ export function ArchiveViewer({
         className="archive-viewer__dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="archive-viewer-caption"
+        aria-labelledby={captionId}
         tabIndex={-1}
       >
         <button
@@ -128,7 +158,7 @@ export function ArchiveViewer({
           <img src={item.src} alt={item.alt} />
           <figcaption>
             <span className="museum-label text-ink">{item.type}</span>
-            <h3 id="archive-viewer-caption">{item.caption}</h3>
+            <h3 id={captionId}>{item.caption}</h3>
             {item.displayDate ? <time>{item.displayDate}</time> : null}
           </figcaption>
         </figure>

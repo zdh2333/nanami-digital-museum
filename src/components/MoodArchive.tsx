@@ -23,14 +23,14 @@ export function MoodArchive({
   items = archiveItems,
 }: MoodArchiveProps) {
   const [filter, setFilter] = useState<ArchiveFilter>('all')
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [activeItemId, setActiveItemId] = useState<string | null>(null)
   const [opener, setOpener] = useState<HTMLElement | null>(null)
   const filteredItems = useMemo(
     () => items.filter((item) => filter === 'all' || item.type === filter),
     [filter, items],
   )
 
-  const closeViewer = useCallback(() => setActiveIndex(null), [])
+  const closeViewer = useCallback(() => setActiveItemId(null), [])
 
   return (
     <section id="mood-archive" className="anchor-target museum-section mood-archive" aria-labelledby="mood-archive-title">
@@ -66,7 +66,7 @@ export function MoodArchive({
             <p className="mood-archive__filter-empty">This part of the archive is still being curated.</p>
           ) : (
             <div className="mood-archive__ribbon" aria-label="Nanami mood archive">
-              {filteredItems.map((item, index) => (
+              {filteredItems.map((item) => (
                 <button
                   key={item.id}
                   className="archive-card"
@@ -74,7 +74,7 @@ export function MoodArchive({
                   aria-label={`View ${item.caption}`}
                   onClick={(event) => {
                     setOpener(event.currentTarget)
-                    setActiveIndex(index)
+                    setActiveItemId(item.id)
                   }}
                 >
                   <span className="archive-card__image">
@@ -97,11 +97,11 @@ export function MoodArchive({
         </div>
       )}
 
-      {activeIndex !== null ? (
+      {activeItemId !== null ? (
         <ArchiveViewer
           items={filteredItems}
-          activeIndex={activeIndex}
-          onActiveIndexChange={setActiveIndex}
+          activeItemId={activeItemId}
+          onActiveItemChange={setActiveItemId}
           onClose={closeViewer}
           returnFocusTo={opener}
         />
