@@ -131,9 +131,9 @@ test.describe('desktop museum', () => {
     await page.goto('/')
     await waitForModel(page)
 
-    expect(modelResponses).toEqual([
-      { url: 'http://127.0.0.1:4173/models/nanami.glb', status: 200 },
-    ])
+    expect(modelResponses).toHaveLength(1)
+    expect(modelResponses[0]).toMatchObject({ status: 200 })
+    expect(new URL(modelResponses[0].url).pathname).toBe('/models/nanami.glb')
     await expect(page.locator('.hero-poster')).toHaveAttribute('aria-hidden', 'true')
     await expect(page.getByText('Drag to turn', { exact: true })).toBeVisible()
 

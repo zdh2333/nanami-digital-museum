@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const chromePath = process.env.NANAMI_CHROME_PATH
+const externalBaseURL = process.env.E2E_BASE_URL
+const baseURL = externalBaseURL ?? 'http://127.0.0.1:4173'
 
 export default defineConfig({
   testDir: './tests',
@@ -13,7 +15,7 @@ export default defineConfig({
   outputDir: 'test-results',
   expect: { timeout: 10_000 },
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL,
     colorScheme: 'dark',
     locale: 'en-US',
     reducedMotion: 'no-preference',
@@ -39,12 +41,14 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
+  webServer: externalBaseURL
+    ? undefined
+    : {
+        command: 'npm run dev -- --host 127.0.0.1 --port 4173',
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
 })
