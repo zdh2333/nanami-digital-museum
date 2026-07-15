@@ -11,7 +11,7 @@ type FieldNotesProps = { staticExperience: boolean }
 
 export function FieldNotes({ staticExperience }: FieldNotesProps) {
   return (
-    <section id="field-notes" className="museum-section field-notes" aria-labelledby="field-notes-title">
+    <section id="field-notes" className="anchor-target museum-section field-notes" aria-labelledby="field-notes-title">
       <SectionReveal className="field-notes__intro" staticExperience={staticExperience}>
         <p className="museum-label text-ink">Observed daily</p>
         <h2 id="field-notes-title">FIELD NOTES</h2>

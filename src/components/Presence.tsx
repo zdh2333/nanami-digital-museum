@@ -4,7 +4,7 @@ type PresenceProps = { staticExperience: boolean }
 
 export function Presence({ staticExperience }: PresenceProps) {
   return (
-    <section id="presence" className="museum-section presence" aria-labelledby="presence-title">
+    <section id="presence" className="anchor-target museum-section presence" aria-labelledby="presence-title">
       <SectionReveal className="presence__copy" staticExperience={staticExperience}>
         <p className="museum-label text-ink">Presence · 01</p>
         <h2 id="presence-title">She runs the house.</h2>

@@ -56,9 +56,9 @@ function NanamiPoster({ hidden = false }: NanamiPosterProps) {
       src="/posters/nanami-hero.webp"
       alt={hidden ? '' : NANAMI_DESCRIPTION}
       aria-hidden={hidden || undefined}
-      width="1080"
-      height="1440"
-      className={`hero-poster h-full w-full object-cover object-center${hidden ? ' hero-poster--hidden' : ''}`}
+      width="1600"
+      height="1000"
+      className={`hero-poster hero-poster--contained${hidden ? ' hero-poster--hidden' : ''}`}
     />
   )
 }
@@ -87,7 +87,7 @@ export function Hero3D({ staticExperience }: Hero3DProps) {
   if (staticExperience) return <NanamiPoster />
 
   return (
-    <div className="hero-3d-stage">
+    <div className="hero-3d-stage" data-model-ready={modelReady && !interactiveFailed}>
       <NanamiPoster hidden={modelReady && !interactiveFailed} />
       {!interactiveFailed && (
         <div className="hero-3d-layer">
@@ -100,6 +100,11 @@ export function Hero3D({ staticExperience }: Hero3DProps) {
             </Suspense>
           </Hero3DErrorBoundary>
         </div>
+      )}
+      {modelReady && !interactiveFailed && (
+        <span className="hero-3d-hint" aria-hidden="true">
+          Drag to turn
+        </span>
       )}
     </div>
   )

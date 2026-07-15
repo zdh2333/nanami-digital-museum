@@ -77,10 +77,16 @@ const html = `<!doctype html>
         renderer.render(scene, camera);
       };
       window.renderPoster = () => {
+        scene.background = new THREE.Color('#070907');
+        renderer.toneMappingExposure = 1.5;
         renderer.setSize(innerWidth, innerHeight);
         camera.aspect = innerWidth / innerHeight;
         camera.updateProjectionMatrix();
-        camera.position.set(center.x, center.y + size.y * 0.08, center.z + size.y * 2.5);
+        camera.position.set(
+          center.x - distance * 0.78,
+          center.y + diameter * 0.08,
+          center.z + distance * 0.62,
+        );
         camera.lookAt(center.x, center.y + size.y * 0.03, center.z);
         renderer.render(scene, camera);
       };
@@ -152,7 +158,7 @@ try {
     .png({ compressionLevel: 9 })
     .toFile(reviewPath);
 
-  await page.setViewportSize({ width: 1080, height: 1440 });
+  await page.setViewportSize({ width: 1600, height: 1000 });
   await page.evaluate(() => window.renderPoster());
   const posterPng = await page.screenshot({ type: "png" });
   await sharp(posterPng).webp({ quality: 88, effort: 6 }).toFile(posterPath);

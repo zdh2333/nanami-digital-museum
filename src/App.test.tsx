@@ -48,6 +48,7 @@ describe('Nanami Cat museum shell', () => {
     ])
     sections.forEach((section) => {
       expect(section.querySelectorAll('h1, h2, h3')).toHaveLength(1)
+      expect(section).toHaveClass('anchor-target')
     })
   })
 

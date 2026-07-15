@@ -84,8 +84,9 @@ describe('Hero3D', () => {
     )
 
     expect(poster).toHaveAttribute('src', '/posters/nanami-hero.webp')
-    expect(poster).toHaveAttribute('width', '1080')
-    expect(poster).toHaveAttribute('height', '1440')
+    expect(poster).toHaveAttribute('width', '1600')
+    expect(poster).toHaveAttribute('height', '1000')
+    expect(poster).toHaveClass('hero-poster--contained')
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 
@@ -120,6 +121,11 @@ describe('Hero3D', () => {
     await waitFor(() => expect(poster).toHaveClass('hero-poster--hidden'))
     expect(poster).toHaveAttribute('aria-hidden', 'true')
     expect(container.querySelector('canvas')).toBeInTheDocument()
+    expect(container.querySelector('.hero-3d-stage')).toHaveAttribute(
+      'data-model-ready',
+      'true',
+    )
+    expect(screen.getByText('Drag to turn')).toBeVisible()
   })
 
   it('restores the poster when Canvas rendering fails', async () => {

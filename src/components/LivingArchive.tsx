@@ -10,7 +10,7 @@ type LivingArchiveProps = { staticExperience: boolean }
 
 export function LivingArchive({ staticExperience }: LivingArchiveProps) {
   return (
-    <section id="living-archive" className="museum-section living-archive" aria-labelledby="living-archive-title">
+    <section id="living-archive" className="anchor-target museum-section living-archive" aria-labelledby="living-archive-title">
       <SectionReveal className="living-archive__heading" staticExperience={staticExperience}>
         <p className="museum-label text-ink">Living archive</p>
         <h2 id="living-archive-title">Three collections. Always growing.</h2>

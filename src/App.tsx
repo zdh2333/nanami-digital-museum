@@ -15,7 +15,7 @@ export function App() {
       <Navigation />
       <section
         id="hero"
-        className="hero-section"
+        className="anchor-target hero-section"
         aria-labelledby="museum-title"
       >
         <div className="ambient-glow" aria-hidden="true" />
