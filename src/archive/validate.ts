@@ -39,5 +39,9 @@ export function validateArchive(items: readonly ArchiveItemInput[]): readonly Ar
     ids.add(item.id)
   }
 
-  return Object.freeze([...items]) as readonly ArchiveItem[]
+  const validatedItems = items.map((item) =>
+    Object.freeze({ ...item }) as ArchiveItem,
+  )
+
+  return Object.freeze(validatedItems)
 }

@@ -79,6 +79,18 @@ describe('validateArchive', () => {
     expect(archive).toEqual([photo, meme])
     expect(Object.isFrozen(archive)).toBe(true)
   })
+
+  it('clones and freezes each item so validated invariants cannot be mutated later', () => {
+    const input = validPhoto()
+    const archive = validateArchive([input])
+
+    input.faceChecked = false
+    input.src = '/private/original.jpg'
+
+    expect(archive[0].faceChecked).toBe(true)
+    expect(archive[0].src).toBe('/archive/nanami-window-watch.webp')
+    expect(Object.isFrozen(archive[0])).toBe(true)
+  })
 })
 
 describe('archiveItems', () => {

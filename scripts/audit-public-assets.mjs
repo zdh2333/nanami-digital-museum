@@ -1,31 +1,25 @@
 import { lstat, readdir } from 'node:fs/promises'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import exifr from 'exifr'
+import sharp from 'sharp'
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const archiveRoot =
   process.env.NODE_ENV === 'test' && process.env.NANAMI_ARCHIVE_ROOT
     ? resolve(process.env.NANAMI_ARCHIVE_ROOT)
     : join(projectRoot, 'public', 'archive')
-const forbiddenKeys = new Set([
-  'latitude',
-  'longitude',
-  'gpslatitude',
-  'gpslongitude',
-  'make',
-  'model',
-  'datetimeoriginal',
-  'createdate',
-])
+const supportedExtensions = new Set(['.jpeg', '.jpg', '.png', '.webp'])
 
 async function collectFiles(directory) {
   let entries
   try {
     entries = await readdir(directory, { withFileTypes: true })
   } catch (error) {
-    if (error?.code === 'ENOENT') return []
+    if (error?.code === 'ENOENT') {
+      throw new Error(`Archive root does not exist: ${directory}`)
+    }
     throw error
   }
 
@@ -42,19 +36,52 @@ async function collectFiles(directory) {
   return files
 }
 
-function findForbiddenMetadata(value, path = '') {
+function metadataKeys(value) {
   if (!value || typeof value !== 'object') return []
+  return Object.keys(value).sort((a, b) => a.localeCompare(b))
+}
 
-  const matches = []
-  for (const [key, child] of Object.entries(value)) {
-    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const childPath = path ? `${path}.${key}` : key
-    if (forbiddenKeys.has(normalizedKey)) matches.push(childPath)
-    if (child && typeof child === 'object' && !(child instanceof Date)) {
-      matches.push(...findForbiddenMetadata(child, childPath))
-    }
+async function inspectImage(file) {
+  const extension = extname(file).toLowerCase()
+  if (!supportedExtensions.has(extension)) {
+    throw new Error(`Unsupported public archive asset format: ${relative(archiveRoot, file)}`)
   }
-  return matches
+
+  let metadata
+  try {
+    metadata = await sharp(file, { failOn: 'error' }).metadata()
+    await sharp(file, { failOn: 'error' }).raw().toBuffer()
+  } catch {
+    throw new Error(
+      `Image could not be inspected because it is invalid or corrupt: ${relative(archiveRoot, file)}`,
+    )
+  }
+
+  const embeddedBlocks = [
+    metadata.exif && 'EXIF',
+    metadata.iptc && 'IPTC',
+    metadata.xmp && 'XMP',
+  ].filter(Boolean)
+
+  if (embeddedBlocks.length === 0) return []
+
+  let parsedMetadata
+  try {
+    parsedMetadata = await exifr.parse(file, {
+      tiff: true,
+      xmp: true,
+      iptc: true,
+      mergeOutput: true,
+      silentErrors: false,
+    })
+  } catch {
+    // The privacy-bearing block itself is enough to fail closed even if exifr
+    // cannot decode a format or malformed metadata payload.
+  }
+
+  const keys = metadataKeys(parsedMetadata)
+  const keySummary = keys.length > 0 ? ` (${keys.join(', ')})` : ''
+  return [`${embeddedBlocks.join('/')} metadata${keySummary}`]
 }
 
 async function main() {
@@ -62,14 +89,7 @@ async function main() {
   const violations = []
 
   for (const file of files) {
-    const metadata = await exifr.parse(file, {
-      tiff: true,
-      xmp: true,
-      iptc: true,
-      mergeOutput: true,
-      silentErrors: true,
-    })
-    const exposed = findForbiddenMetadata(metadata)
+    const exposed = await inspectImage(file)
     if (exposed.length > 0) {
       violations.push(`${relative(projectRoot, file)}: ${exposed.join(', ')}`)
     }
