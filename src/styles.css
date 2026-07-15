@@ -392,7 +392,8 @@ a {
   padding: 0.5rem 0 1.25rem;
   scroll-snap-type: x mandatory;
   scrollbar-color: var(--color-ink-muted) transparent;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-inline: contain;
 }
 
 .archive-card {
@@ -421,6 +422,32 @@ a {
   height: 100%;
   object-fit: cover;
   transition: transform 400ms ease, filter 400ms ease;
+}
+
+.archive-image-placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 12rem;
+  place-content: center;
+  gap: 0.6rem;
+  padding: 1.5rem;
+  color: var(--color-ink);
+  background:
+    linear-gradient(135deg, rgb(144 165 143 / 8%), transparent 55%),
+    rgb(7 9 7 / 92%);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.archive-image-placeholder small {
+  color: var(--color-bone-muted);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 
 .archive-card:hover .archive-card__image img {
@@ -461,6 +488,10 @@ a {
   backdrop-filter: blur(1rem);
 }
 
+.archive-viewer--inactive {
+  pointer-events: none;
+}
+
 .archive-viewer__dialog {
   position: relative;
   display: grid;
@@ -486,6 +517,12 @@ a {
   gap: clamp(2rem, 5vw, 6rem);
   align-items: center;
   margin: 0;
+}
+
+.archive-viewer__media {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 .archive-viewer__figure img {

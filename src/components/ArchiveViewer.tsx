@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { ArchiveItem } from '../archive/types'
@@ -10,6 +10,7 @@ type ArchiveViewerProps = {
   onActiveItemChange: (id: string) => void
   onClose: () => void
   returnFocusTo: HTMLElement | null
+  returnFocusFallback?: () => HTMLElement | null
 }
 
 const focusableSelector =
@@ -19,6 +20,38 @@ let backgroundLockCount = 0
 let lockedRoot: HTMLElement | null = null
 let savedRootInert = false
 let savedRootAriaHidden: string | null = null
+let modalStack: string[] = []
+const modalStackListeners = new Set<() => void>()
+
+function emitModalStackChange() {
+  modalStackListeners.forEach((listener) => listener())
+}
+
+function subscribeToModalStack(listener: () => void) {
+  modalStackListeners.add(listener)
+  return () => modalStackListeners.delete(listener)
+}
+
+function useIsTopmostModal(token: string, open: boolean) {
+  const isTopmost = useSyncExternalStore(
+    subscribeToModalStack,
+    () => open && modalStack.at(-1) === token,
+    () => false,
+  )
+
+  useEffect(() => {
+    if (!open) return
+
+    modalStack = [...modalStack.filter((entry) => entry !== token), token]
+    emitModalStackChange()
+    return () => {
+      modalStack = modalStack.filter((entry) => entry !== token)
+      emitModalStackChange()
+    }
+  }, [open, token])
+
+  return isTopmost
+}
 
 function useModalBackgroundLock(locked: boolean) {
   useEffect(() => {
@@ -54,35 +87,50 @@ export function ArchiveViewer({
   onActiveItemChange,
   onClose,
   returnFocusTo,
+  returnFocusFallback,
 }: ArchiveViewerProps) {
+  const overlayRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const returnFocusRef = useRef(returnFocusTo)
+  const [imageFailed, setImageFailed] = useState(false)
   const reactId = useId()
+  const modalToken = `archive-viewer-${reactId}`
   const captionId = `archive-viewer-caption-${reactId.replace(/:/g, '')}`
   const activeIndex = items.findIndex((candidate) => candidate.id === activeItemId)
   const item = items[activeIndex]
   const hasMultipleItems = items.length > 1
   const isOpen = Boolean(item)
+  const isTopmost = useIsTopmostModal(modalToken, isOpen)
 
   useBodyScrollLock(isOpen)
   useModalBackgroundLock(isOpen)
 
   useEffect(() => {
     if (!isOpen) return
-
-    closeRef.current?.focus()
     return () => {
-      const target = returnFocusRef.current
+      const opener = returnFocusRef.current
+      const target = opener?.isConnected ? opener : returnFocusFallback?.()
       if (target?.isConnected) target.focus()
     }
-  }, [isOpen])
+  }, [isOpen, returnFocusFallback])
+
+  useEffect(() => {
+    if (isOpen && isTopmost) closeRef.current?.focus()
+  }, [isOpen, isTopmost])
+
+  useEffect(() => {
+    if (overlayRef.current) overlayRef.current.inert = !isTopmost
+  }, [isTopmost])
+
+  useEffect(() => setImageFailed(false), [item?.src])
 
   useEffect(() => {
     if (!item) {
       onClose()
       return
     }
+    if (!isTopmost) return
 
     const move = (direction: number) => {
       if (!hasMultipleItems) return
@@ -123,7 +171,7 @@ export function ArchiveViewer({
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, hasMultipleItems, item, items, onActiveItemChange, onClose])
+  }, [activeIndex, hasMultipleItems, isTopmost, item, items, onActiveItemChange, onClose])
 
   if (!item || typeof document === 'undefined') return null
 
@@ -134,9 +182,15 @@ export function ArchiveViewer({
   }
 
   return createPortal(
-    <div className="archive-viewer" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose()
-    }}>
+    <div
+      ref={overlayRef}
+      className={`archive-viewer${isTopmost ? '' : ' archive-viewer--inactive'}`}
+      role="presentation"
+      aria-hidden={isTopmost ? undefined : true}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
       <div
         ref={dialogRef}
         className="archive-viewer__dialog"
@@ -155,7 +209,24 @@ export function ArchiveViewer({
           Close
         </button>
         <figure className="archive-viewer__figure">
-          <img src={item.src} alt={item.alt} />
+          <div className="archive-viewer__media">
+            {imageFailed ? (
+              <div
+                className="archive-image-placeholder"
+                role="status"
+                aria-label="Image unavailable"
+              >
+                <span>Image unavailable</span>
+                <small>The archive note is still available.</small>
+              </div>
+            ) : (
+              <img
+                src={item.src}
+                alt={item.alt}
+                onError={() => setImageFailed(true)}
+              />
+            )}
+          </div>
           <figcaption>
             <span className="museum-label text-ink">{item.type}</span>
             <h3 id={captionId}>{item.caption}</h3>

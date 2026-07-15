@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -152,20 +154,25 @@ describe('Mood archive viewer', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(document.body.style.overflow).not.toBe('hidden')
+    expect(
+      screen.getByRole('button', { name: /view no closed doors/i }),
+    ).toHaveFocus()
   })
 
-  it('keeps shared modal state locked and uses unique labels until the last viewer closes', () => {
+  it('gives keyboard ownership to only the topmost concurrent viewer', () => {
     function TwoViewers() {
       const [firstOpen, setFirstOpen] = useState(true)
       const [secondOpen, setSecondOpen] = useState(true)
+      const [firstId, setFirstId] = useState(items[0].id)
+      const [secondId, setSecondId] = useState(items[0].id)
 
       return (
         <>
           {firstOpen ? (
             <ArchiveViewer
               items={items}
-              activeItemId={items[0].id}
-              onActiveItemChange={() => undefined}
+              activeItemId={firstId}
+              onActiveItemChange={setFirstId}
               onClose={() => setFirstOpen(false)}
               returnFocusTo={null}
             />
@@ -173,8 +180,8 @@ describe('Mood archive viewer', () => {
           {secondOpen ? (
             <ArchiveViewer
               items={items}
-              activeItemId={items[1].id}
-              onActiveItemChange={() => undefined}
+              activeItemId={secondId}
+              onActiveItemChange={setSecondId}
               onClose={() => setSecondOpen(false)}
               returnFocusTo={null}
             />
@@ -197,26 +204,68 @@ describe('Mood archive viewer', () => {
     expect(root.inert).toBe(true)
     expect(document.body.style.overflow).toBe('hidden')
 
-    fireEvent.click(
-      document.querySelectorAll<HTMLButtonElement>(
-        '[aria-label="Close archive viewer"]',
-      )[0],
-    )
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    const openDialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]')
+    const lowerOverlay = openDialogs[0].closest<HTMLElement>('.archive-viewer')!
+    const topOverlay = openDialogs[1].closest<HTMLElement>('.archive-viewer')!
+    expect(openDialogs[0]).toHaveAccessibleName('Window watch.')
+    expect(openDialogs[1]).toHaveAccessibleName('No closed doors.')
+    expect(lowerOverlay).toHaveAttribute('aria-hidden', 'true')
+    expect(lowerOverlay.inert).toBe(true)
+    expect(topOverlay).not.toHaveAttribute('aria-hidden')
+    expect(topOverlay.inert).toBe(false)
 
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
     expect(root).toHaveAttribute('aria-hidden', 'true')
     expect(root.inert).toBe(true)
     expect(document.body.style.overflow).toBe('hidden')
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Window watch.')
 
-    fireEvent.click(
-      document.querySelector<HTMLButtonElement>(
-        '[aria-label="Close archive viewer"]',
-      )!,
-    )
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('No closed doors.')
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(root).not.toHaveAttribute('aria-hidden')
     expect(root.inert).toBe(false)
     expect(document.body.style.overflow).not.toBe('hidden')
     unmount()
     root.remove()
+  })
+
+  it('replaces failed thumbnail and viewer images with accessible placeholders', () => {
+    renderArchive()
+    const thumbnail = screen.getByAltText(items[0].alt)
+
+    fireEvent.error(thumbnail)
+    expect(screen.getByRole('status', { name: /image unavailable/i })).toBeVisible()
+    expect(screen.getByText(items[0].caption)).toBeVisible()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /view window watch/i }),
+    )
+    const dialog = screen.getByRole('dialog', { name: items[0].caption })
+    fireEvent.error(within(dialog).getByAltText(items[0].alt))
+
+    expect(
+      within(dialog).getByRole('status', { name: /image unavailable/i }),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByRole('button', { name: /next archive item/i }),
+    ).toBeEnabled()
+    expect(dialog.textContent).not.toContain(items[0].id)
+    expect(dialog.textContent).not.toContain(items[0].src)
+  })
+
+  it('allows both horizontal ribbon swipes and vertical page gestures', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/styles.css'),
+      'utf8',
+    )
+
+    expect(css).toMatch(
+      /\.mood-archive__ribbon\s*\{[^}]*touch-action:\s*(?:auto|pan-x pan-y)/s,
+    )
   })
 })
