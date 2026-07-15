@@ -15,7 +15,7 @@ export function Navigation() {
         className="mx-auto flex min-h-16 max-w-[100rem] items-center gap-3 px-4 sm:px-8"
       >
         <a
-          href="#top"
+          href="#hero"
           aria-label="Nanami Cat home"
           className={`${linkClassName} mr-auto px-2 font-medium text-bone`}
         >

@@ -11,7 +11,7 @@ describe('Navigation', () => {
     expect(screen.getByRole('navigation', { name: /museum/i })).toBeVisible()
     expect(screen.getByRole('link', { name: /nanami cat home/i })).toHaveAttribute(
       'href',
-      '#top',
+      '#hero',
     )
     expect(screen.getByRole('link', { name: /presence/i })).toHaveAttribute(
       'href',
