@@ -3,6 +3,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useRef,
   useState,
   type ErrorInfo,
   type ReactNode,
@@ -69,8 +70,16 @@ type Hero3DProps = {
 export function Hero3D({ staticExperience }: Hero3DProps) {
   const [modelReady, setModelReady] = useState(false)
   const [interactiveFailed, setInteractiveFailed] = useState(false)
+  const failureLogged = useRef(false)
   const handleReady = useCallback(() => setModelReady(true), [])
-  const handleFailure = useCallback((_error: Error) => {
+  const handleFailure = useCallback((error: Error) => {
+    if (!failureLogged.current) {
+      failureLogged.current = true
+      console.warn(
+        'Nanami 3D unavailable; using the poster fallback.',
+        error,
+      )
+    }
     setModelReady(false)
     setInteractiveFailed(true)
   }, [])

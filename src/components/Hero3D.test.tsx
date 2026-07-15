@@ -125,6 +125,7 @@ describe('Hero3D', () => {
   it('restores the poster when Canvas rendering fails', async () => {
     controls.canvasShouldThrow = true
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault()
     window.addEventListener('error', preventExpectedError)
 
@@ -140,6 +141,11 @@ describe('Hero3D', () => {
         screen.queryByLabelText('Interactive 3D portrait of Nanami'),
       ).not.toBeInTheDocument(),
     )
+    expect(diagnostic).toHaveBeenCalledTimes(1)
+    expect(diagnostic).toHaveBeenCalledWith(
+      'Nanami 3D unavailable; using the poster fallback.',
+      expect.objectContaining({ message: 'Canvas failed' }),
+    )
     window.removeEventListener('error', preventExpectedError)
   })
 
@@ -150,6 +156,7 @@ describe('Hero3D', () => {
       rejectModel = reject
     })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault()
     window.addEventListener('error', preventExpectedError)
 
@@ -174,6 +181,7 @@ describe('Hero3D', () => {
   })
 
   it('restores the poster after the WebGL context is lost', async () => {
+    const diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { container } = render(<Hero3D staticExperience={false} />)
     const canvas = await waitFor(() => {
       const element = container.querySelector('canvas')
@@ -190,6 +198,11 @@ describe('Hero3D', () => {
     ).toBeVisible()
     await waitFor(() =>
       expect(container.querySelector('canvas')).not.toBeInTheDocument(),
+    )
+    expect(diagnostic).toHaveBeenCalledTimes(1)
+    expect(diagnostic).toHaveBeenCalledWith(
+      'Nanami 3D unavailable; using the poster fallback.',
+      expect.objectContaining({ message: 'WebGL context lost' }),
     )
   })
 
