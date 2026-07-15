@@ -113,8 +113,10 @@ describe('validateArchive', () => {
 })
 
 describe('archiveItems', () => {
-  it('starts with an empty, validated seed until real assets are curated', () => {
-    expect(archiveItems).toEqual([])
+  it('exports the curated collection as an immutable validated archive', () => {
+    expect(archiveItems).toHaveLength(19)
+    expect(archiveItems.every(({ faceChecked }) => faceChecked)).toBe(true)
     expect(Object.isFrozen(archiveItems)).toBe(true)
+    expect(archiveItems.every((item) => Object.isFrozen(item))).toBe(true)
   })
 })

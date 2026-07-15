@@ -68,7 +68,7 @@ describe('Nanami Cat museum shell', () => {
     expect(screen.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeVisible()
     expect(screen.getByText('Three collections. Always growing.')).toBeVisible()
     ;['Photos', 'Memes', '3D'].forEach((label) => {
-      expect(screen.getByText(label)).toBeVisible()
+      expect(screen.getAllByText(label)[0]).toBeVisible()
     })
     expect(screen.getByText('Nanami is probably watching you.')).toBeVisible()
     expect(container.textContent).not.toMatch(

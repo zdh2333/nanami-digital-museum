@@ -8,6 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit:assets": "node scripts/audit-public-assets.mjs",
+    "archive:build": "node scripts/optimize-archive-assets.mjs",
     "model:build": "node scripts/build-nanami-model.mjs",
     "model:browser:install": "playwright install chromium",
     "model:render": "node scripts/render-nanami-model.mjs"
