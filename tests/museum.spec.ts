@@ -232,7 +232,7 @@ test.describe('desktop museum', () => {
     expect(modelRequests).toEqual([])
   })
 
-  test('captures six stable desktop section views', async ({ page }, testInfo: TestInfo) => {
+  test('captures six desktop section review artifacts', async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name !== 'desktop')
     await page.goto('/')
     await waitForModel(page)
@@ -243,7 +243,9 @@ test.describe('desktop museum', () => {
       await section.scrollIntoViewIfNeeded()
       await settleFrames(page, 2)
       await page.screenshot({
-        path: `docs/references/task10/section-${String(index + 1).padStart(2, '0')}-${id}.png`,
+        path: testInfo.outputPath(
+          `section-${String(index + 1).padStart(2, '0')}-${id}.png`,
+        ),
         animations: 'disabled',
       })
     }
@@ -255,7 +257,7 @@ test.describe('mobile safety', () => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile-only coverage')
   })
 
-  test('loads, scrolls, navigates, filters, and uses only the mobile GLB', async ({ page }) => {
+  test('loads, scrolls, navigates, filters, and uses only the mobile GLB', async ({ page }, testInfo) => {
     const modelRequests: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/models/')) modelRequests.push(request.url())
@@ -282,7 +284,7 @@ test.describe('mobile safety', () => {
       await expect(page.locator(`#${id}`)).toBeVisible()
     }
     await page.screenshot({
-      path: 'docs/references/task10/mobile-full-page.png',
+      path: testInfo.outputPath('mobile-full-page.png'),
       fullPage: true,
       animations: 'disabled',
     })
