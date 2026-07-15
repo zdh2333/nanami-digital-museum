@@ -1,10 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  shouldUseStaticExperience,
-  useReducedExperience,
-} from '../src/hooks/useReducedExperience'
+import { shouldUseStaticExperience } from '../src/hooks/useReducedExperience'
+
+beforeEach(() => {
+  vi.resetModules()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -25,9 +26,9 @@ describe('shouldUseStaticExperience', () => {
 })
 
 describe('useReducedExperience', () => {
-  it('tracks reduced-motion changes after a single WebGL probe', () => {
+  it('tracks reduced-motion changes after a single WebGL probe', async () => {
     let prefersReducedMotion = false
-    let changeListener: (() => void) | undefined
+    const changeListeners: Array<() => void> = []
     const removeEventListener = vi.fn()
     const loseContext = vi.fn()
     const context = {
@@ -42,7 +43,7 @@ describe('useReducedExperience', () => {
           return prefersReducedMotion
         },
         addEventListener: vi.fn((_event, listener) => {
-          changeListener = listener
+          changeListeners.push(listener)
         }),
         removeEventListener,
       })),
@@ -50,21 +51,27 @@ describe('useReducedExperience', () => {
     const getContext = vi
       .spyOn(HTMLCanvasElement.prototype, 'getContext')
       .mockReturnValue(context as unknown as WebGLRenderingContext)
+    const { useReducedExperience } = await import(
+      '../src/hooks/useReducedExperience'
+    )
 
-    const { result, unmount } = renderHook(() => useReducedExperience())
-    expect(result.current).toBe(false)
+    const { result, unmount } = renderHook(() => [
+      useReducedExperience(),
+      useReducedExperience(),
+    ])
+    expect(result.current).toEqual([false, false])
     expect(getContext).toHaveBeenCalledTimes(1)
+    expect(loseContext).toHaveBeenCalledTimes(1)
 
     prefersReducedMotion = true
-    act(() => changeListener?.())
-    expect(result.current).toBe(true)
+    act(() => changeListeners.forEach((listener) => listener()))
+    expect(result.current).toEqual([true, true])
 
     unmount()
-    expect(removeEventListener).toHaveBeenCalledTimes(1)
-    expect(loseContext).toHaveBeenCalledTimes(1)
+    expect(removeEventListener).toHaveBeenCalledTimes(2)
   })
 
-  it('fails safely to the static experience when probing WebGL throws', () => {
+  it('fails safely to the static experience when probing WebGL throws', async () => {
     vi.stubGlobal('WebGLRenderingContext', class {})
     vi.stubGlobal(
       'matchMedia',
@@ -77,9 +84,48 @@ describe('useReducedExperience', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
       throw new Error('GPU unavailable')
     })
+    const { useReducedExperience } = await import(
+      '../src/hooks/useReducedExperience'
+    )
 
     const { result } = renderHook(() => useReducedExperience())
 
     expect(result.current).toBe(true)
+  })
+
+  it('uses and cleans up legacy MediaQueryList listeners', async () => {
+    let prefersReducedMotion = false
+    let changeListener: (() => void) | undefined
+    const removeListener = vi.fn()
+
+    vi.stubGlobal('WebGLRenderingContext', class {})
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        get matches() {
+          return prefersReducedMotion
+        },
+        addListener: vi.fn((listener) => {
+          changeListener = listener
+        }),
+        removeListener,
+      })),
+    )
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      getExtension: vi.fn(() => null),
+    } as unknown as WebGLRenderingContext)
+    const { useReducedExperience } = await import(
+      '../src/hooks/useReducedExperience'
+    )
+
+    const { result, unmount } = renderHook(() => useReducedExperience())
+    expect(result.current).toBe(false)
+
+    prefersReducedMotion = true
+    act(() => changeListener?.())
+    expect(result.current).toBe(true)
+
+    unmount()
+    expect(removeListener).toHaveBeenCalledTimes(1)
   })
 })

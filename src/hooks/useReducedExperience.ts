@@ -9,13 +9,26 @@ export function shouldUseStaticExperience(
 
 type WebGlContext = WebGLRenderingContext | WebGL2RenderingContext
 
-function probeWebGl(): { supported: boolean; context: WebGlContext | null } {
+let cachedWebGlSupport: boolean | undefined
+
+function releaseProbeContext(context: WebGlContext) {
+  try {
+    context.getExtension('WEBGL_lose_context')?.loseContext()
+  } catch {
+    // Context release is best-effort; capability detection remains valid.
+  }
+}
+
+function probeWebGl() {
+  if (cachedWebGlSupport !== undefined) return cachedWebGlSupport
+
   if (
     typeof document === 'undefined' ||
     (typeof WebGLRenderingContext === 'undefined' &&
       typeof WebGL2RenderingContext === 'undefined')
   ) {
-    return { supported: false, context: null }
+    cachedWebGlSupport = false
+    return cachedWebGlSupport
   }
 
   try {
@@ -24,9 +37,12 @@ function probeWebGl(): { supported: boolean; context: WebGlContext | null } {
       (canvas.getContext('webgl2') as WebGlContext | null) ??
       (canvas.getContext('webgl') as WebGlContext | null)
 
-    return { supported: context !== null, context }
+    cachedWebGlSupport = context !== null
+    if (context) releaseProbeContext(context)
+    return cachedWebGlSupport
   } catch {
-    return { supported: false, context: null }
+    cachedWebGlSupport = false
+    return cachedWebGlSupport
   }
 }
 
@@ -41,7 +57,7 @@ export function useReducedExperience() {
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    const { supported, context } = probeWebGl()
+    const supported = probeWebGl()
     const update = () => {
       setStaticExperience(
         shouldUseStaticExperience(mediaQuery?.matches ?? readPreference(), supported),
@@ -49,12 +65,18 @@ export function useReducedExperience() {
     }
 
     update()
-    mediaQuery?.addEventListener?.('change', update)
+    if (typeof mediaQuery?.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', update)
+    } else {
+      mediaQuery?.addListener?.(update)
+    }
 
     return () => {
-      mediaQuery?.removeEventListener?.('change', update)
-      const loseContext = context?.getExtension('WEBGL_lose_context')
-      loseContext?.loseContext()
+      if (typeof mediaQuery?.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', update)
+      } else {
+        mediaQuery?.removeListener?.(update)
+      }
     }
   }, [])
 

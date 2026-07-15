@@ -5,6 +5,8 @@ import { ScrambleText } from './ScrambleText'
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('ScrambleText', () => {
@@ -16,6 +18,23 @@ describe('ScrambleText', () => {
     expect(text.querySelector('[aria-hidden="true"]')).toHaveTextContent(
       'Many moods.',
     )
+  })
+
+  it('does not probe WebGL when the static experience is explicit', () => {
+    vi.stubGlobal('WebGLRenderingContext', class {})
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    )
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
+
+    render(<ScrambleText text="Nanami" staticExperience />)
+
+    expect(getContext).not.toHaveBeenCalled()
   })
 
   it('keeps final text accessible while the visual layer resolves', () => {

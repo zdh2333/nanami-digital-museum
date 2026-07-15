@@ -18,20 +18,22 @@ function scrambledFrame(text: string, revealedCharacters: number) {
   }).join('')
 }
 
-export function ScrambleText({
+type ScrambleTextRendererProps = Omit<ScrambleTextProps, 'staticExperience'> & {
+  staticExperience: boolean
+}
+
+function ScrambleTextRenderer({
   text,
   className,
   staticExperience,
   stepDuration = 35,
-}: ScrambleTextProps) {
-  const detectedStaticExperience = useReducedExperience()
-  const isStatic = staticExperience ?? detectedStaticExperience
+}: ScrambleTextRendererProps) {
   const [visualText, setVisualText] = useState(() =>
-    isStatic ? text : scrambledFrame(text, 0),
+    staticExperience ? text : scrambledFrame(text, 0),
   )
 
   useEffect(() => {
-    if (isStatic) {
+    if (staticExperience) {
       setVisualText(text)
       return
     }
@@ -45,11 +47,24 @@ export function ScrambleText({
     }, stepDuration)
 
     return () => window.clearInterval(timer)
-  }, [isStatic, stepDuration, text])
+  }, [staticExperience, stepDuration, text])
 
   return (
     <span className={className} aria-label={text}>
       <span aria-hidden="true">{visualText}</span>
     </span>
   )
+}
+
+function DetectedScrambleText(props: Omit<ScrambleTextProps, 'staticExperience'>) {
+  const staticExperience = useReducedExperience()
+  return <ScrambleTextRenderer {...props} staticExperience={staticExperience} />
+}
+
+export function ScrambleText({
+  staticExperience,
+  ...props
+}: ScrambleTextProps) {
+  if (staticExperience === undefined) return <DetectedScrambleText {...props} />
+  return <ScrambleTextRenderer {...props} staticExperience={staticExperience} />
 }
