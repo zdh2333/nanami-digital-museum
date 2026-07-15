@@ -1,20 +1,22 @@
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
-import { chromium } from 'playwright-core';
-import sharp from 'sharp';
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
+import sharp from "sharp";
 
-const [modelArg, reviewArg, posterArg] = process.argv.slice(2);
-if (!modelArg || !reviewArg || !posterArg) {
-  throw new Error(
-    'Usage: node scripts/render-nanami-model.mjs <model.glb> <review.png> <poster.webp>',
-  );
-}
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const [
+  modelArg = "public/models/nanami.glb",
+  reviewArg = "docs/references/nanami-model-review.png",
+  posterArg = "public/posters/nanami-hero.webp",
+] = process.argv.slice(2);
 
-const modelPath = resolve(modelArg);
-const reviewPath = resolve(reviewArg);
-const posterPath = resolve(posterArg);
+const modelPath = resolve(ROOT, modelArg);
+const reviewPath = resolve(ROOT, reviewArg);
+const posterPath = resolve(ROOT, posterArg);
 const modelName = basename(modelPath);
+const threeRoot = resolve(ROOT, "node_modules/three");
 
 const html = `<!doctype html>
 <html>
@@ -25,7 +27,7 @@ const html = `<!doctype html>
       canvas { display: block; width: 100%; height: 100%; }
     </style>
     <script type="importmap">
-      {"imports":{"three":"https://unpkg.com/three@0.178.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.178.0/examples/jsm/"}}
+      {"imports":{"three":"/three/build/three.module.js","three/addons/":"/three/examples/jsm/"}}
     </script>
   </head>
   <body>
@@ -90,12 +92,26 @@ const html = `<!doctype html>
 
 const server = createServer(async (request, response) => {
   try {
-    if (request.url === `/${modelName}`) {
-      response.writeHead(200, { 'Content-Type': 'model/gltf-binary' });
+    const requestPath = new URL(request.url, "http://127.0.0.1").pathname;
+    if (requestPath === `/${modelName}`) {
+      response.writeHead(200, { "Content-Type": "model/gltf-binary" });
       response.end(await readFile(modelPath));
       return;
     }
-    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    if (requestPath.startsWith("/three/")) {
+      const localPath = resolve(threeRoot, requestPath.slice("/three/".length));
+      if (!localPath.startsWith(`${threeRoot}/`)) {
+        response.writeHead(403);
+        response.end("Forbidden");
+        return;
+      }
+      response.writeHead(200, {
+        "Content-Type": "text/javascript; charset=utf-8",
+      });
+      response.end(await readFile(localPath));
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     response.end(html);
   } catch (error) {
     response.writeHead(500);
@@ -103,27 +119,29 @@ const server = createServer(async (request, response) => {
   }
 });
 
-await new Promise((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
-const { port } = server.address();
-const browser = await chromium.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  headless: true,
-});
+let browser;
 
 try {
+  await new Promise((resolveReady) =>
+    server.listen(0, "127.0.0.1", resolveReady),
+  );
+  const { port } = server.address();
+  const executablePath =
+    process.env.NANAMI_CHROME_PATH || chromium.executablePath();
+  browser = await chromium.launch({ executablePath, headless: true });
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.modelReady === true);
 
-  const angles = ['front', 'left', 'back', 'right'];
+  const angles = ["front", "left", "back", "right"];
   const renders = [];
   for (const angle of angles) {
     await page.evaluate((name) => window.renderAngle(name), angle);
-    renders.push(await page.screenshot({ type: 'png' }));
+    renders.push(await page.screenshot({ type: "png" }));
   }
 
   await sharp({
-    create: { width: 1800, height: 1800, channels: 3, background: '#d9d4cc' },
+    create: { width: 1800, height: 1800, channels: 3, background: "#d9d4cc" },
   })
     .composite([
       { input: renders[0], left: 0, top: 0 },
@@ -136,9 +154,16 @@ try {
 
   await page.setViewportSize({ width: 1080, height: 1440 });
   await page.evaluate(() => window.renderPoster());
-  const posterPng = await page.screenshot({ type: 'png' });
+  const posterPng = await page.screenshot({ type: "png" });
   await sharp(posterPng).webp({ quality: 88, effort: 6 }).toFile(posterPath);
 } finally {
-  await browser.close();
-  server.close();
+  try {
+    if (browser) await browser.close();
+  } finally {
+    if (server.listening) {
+      await new Promise((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }
 }
