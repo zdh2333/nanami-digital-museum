@@ -1,22 +1,57 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { canvasProps } = vi.hoisted(() => ({
+const { canvasProps, controls } = vi.hoisted(() => ({
   canvasProps: {} as Record<string, unknown>,
+  controls: {
+    canvasShouldThrow: false,
+    renderCanvasChildren: false,
+    gltfPromise: null as Promise<never> | null,
+    gltfError: null as Error | null,
+  },
 }))
 
-vi.mock('@react-three/fiber', () => ({
-  Canvas: (props: Record<string, unknown>) => {
-    Object.assign(canvasProps, props)
-    return <canvas aria-label={props['aria-label'] as string} />
-  },
-  useFrame: vi.fn(),
-}))
+vi.mock('@react-three/fiber', async () => {
+  const React = await import('react')
+
+  return {
+    Canvas: (props: Record<string, unknown>) => {
+      if (controls.canvasShouldThrow) throw new Error('Canvas failed')
+
+      const canvas = React.useRef<HTMLCanvasElement>(null)
+      React.useEffect(() => {
+        ;(props.onCreated as ((state: unknown) => void) | undefined)?.({
+          gl: { domElement: canvas.current },
+        })
+      }, [props.onCreated])
+      Object.assign(canvasProps, props)
+
+      const modelBoundary = controls.renderCanvasChildren
+        ? React.Children.toArray(props.children as React.ReactNode).at(-1)
+        : null
+
+      return (
+        <>
+          <canvas ref={canvas} aria-hidden="true" />
+          {modelBoundary}
+        </>
+      )
+    },
+    useFrame: vi.fn(),
+  }
+})
 
 vi.mock('@react-three/drei', () => ({
   Environment: () => null,
   Lightformer: () => null,
-  useGLTF: Object.assign(vi.fn(), { preload: vi.fn() }),
+  useGLTF: Object.assign(
+    vi.fn(() => {
+      if (controls.gltfError) throw controls.gltfError
+      if (controls.gltfPromise) throw controls.gltfPromise
+      return { scene: { clone: () => ({}) } }
+    }),
+    { preload: vi.fn() },
+  ),
 }))
 
 import { Hero3D } from './Hero3D'
@@ -29,6 +64,18 @@ import {
 } from './NanamiModel'
 
 describe('Hero3D', () => {
+  beforeEach(() => {
+    controls.canvasShouldThrow = false
+    controls.renderCanvasChildren = false
+    controls.gltfPromise = null
+    controls.gltfError = null
+    for (const key of Object.keys(canvasProps)) delete canvasProps[key]
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('shows the accessible poster without creating a WebGL canvas for the static experience', () => {
     const { container } = render(<Hero3D staticExperience />)
 
@@ -50,6 +97,100 @@ describe('Hero3D', () => {
     ).toBeInTheDocument()
     expect(canvasProps.dpr).toEqual([1, 1.75])
     expect(canvasProps.camera).toEqual({ position: [0, 1.1, 4.5], fov: 32 })
+  })
+
+  it('keeps the accessible poster visible while the GLB is loading', async () => {
+    render(<Hero3D staticExperience={false} />)
+
+    await screen.findByLabelText('Interactive 3D portrait of Nanami')
+    expect(
+      screen.getByAltText(
+        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
+      ),
+    ).toBeVisible()
+  })
+
+  it('hides the poster only after the model reports that it is ready', async () => {
+    controls.renderCanvasChildren = true
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { container } = render(<Hero3D staticExperience={false} />)
+
+    const poster = container.querySelector('.hero-poster')
+    expect(poster).toBeInTheDocument()
+    await waitFor(() => expect(poster).toHaveClass('hero-poster--hidden'))
+    expect(poster).toHaveAttribute('aria-hidden', 'true')
+    expect(container.querySelector('canvas')).toBeInTheDocument()
+  })
+
+  it('restores the poster when Canvas rendering fails', async () => {
+    controls.canvasShouldThrow = true
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const preventExpectedError = (event: ErrorEvent) => event.preventDefault()
+    window.addEventListener('error', preventExpectedError)
+
+    render(<Hero3D staticExperience={false} />)
+
+    expect(
+      await screen.findByAltText(
+        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
+      ),
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(
+        screen.queryByLabelText('Interactive 3D portrait of Nanami'),
+      ).not.toBeInTheDocument(),
+    )
+    window.removeEventListener('error', preventExpectedError)
+  })
+
+  it('restores the poster when the model promise rejects', async () => {
+    controls.renderCanvasChildren = true
+    let rejectModel!: (error: Error) => void
+    controls.gltfPromise = new Promise<never>((_resolve, reject) => {
+      rejectModel = reject
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const preventExpectedError = (event: ErrorEvent) => event.preventDefault()
+    window.addEventListener('error', preventExpectedError)
+
+    render(<Hero3D staticExperience={false} />)
+
+    await screen.findByLabelText('Interactive 3D portrait of Nanami')
+    const modelError = new Error('GLB failed')
+    controls.gltfError = modelError
+    rejectModel(modelError)
+
+    expect(
+      await screen.findByAltText(
+        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
+      ),
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(
+        screen.queryByLabelText('Interactive 3D portrait of Nanami'),
+      ).not.toBeInTheDocument(),
+    )
+    window.removeEventListener('error', preventExpectedError)
+  })
+
+  it('restores the poster after the WebGL context is lost', async () => {
+    const { container } = render(<Hero3D staticExperience={false} />)
+    const canvas = await waitFor(() => {
+      const element = container.querySelector('canvas')
+      expect(element).toBeInTheDocument()
+      return element as HTMLCanvasElement
+    })
+
+    fireEvent(canvas, new Event('webglcontextlost', { cancelable: true }))
+
+    expect(
+      await screen.findByAltText(
+        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
+      ),
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(container.querySelector('canvas')).not.toBeInTheDocument(),
+    )
   })
 
   it('selects only the mobile model for compact viewports', () => {

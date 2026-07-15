@@ -86,7 +86,7 @@ a {
   height: 100%;
 }
 
-.hero-visual > img {
+.hero-visual .hero-poster {
   display: block;
   width: 100%;
   height: 100%;
@@ -94,6 +94,23 @@ a {
   object-position: 50% 38%;
   opacity: 0.74;
   filter: saturate(0.82) brightness(0.64) contrast(1.14);
+  transition: opacity 320ms ease;
+}
+
+.hero-visual .hero-poster--hidden {
+  opacity: 0;
+}
+
+.hero-3d-stage,
+.hero-3d-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-3d-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .hero-3d-canvas,
@@ -104,7 +121,7 @@ a {
 
 .hero-3d-canvas {
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .hero-3d-canvas:active {

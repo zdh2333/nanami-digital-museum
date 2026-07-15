@@ -1,5 +1,10 @@
 import { Environment, Lightformer, useGLTF } from '@react-three/drei'
-import { Canvas, type ThreeEvent, useFrame } from '@react-three/fiber'
+import {
+  Canvas,
+  type RootState,
+  type ThreeEvent,
+  useFrame,
+} from '@react-three/fiber'
 import {
   Suspense,
   useEffect,
@@ -99,6 +104,7 @@ type NanamiModelProps = {
   compactViewport: boolean
   keyboardYaw: number
   modelUrl: string
+  onReady: () => void
   prefersReducedMotion: boolean
 }
 
@@ -106,6 +112,7 @@ export function NanamiModel({
   compactViewport,
   keyboardYaw,
   modelUrl,
+  onReady,
   prefersReducedMotion,
 }: NanamiModelProps) {
   const { scene } = useGLTF(modelUrl)
@@ -116,6 +123,10 @@ export function NanamiModel({
   const dragStart = useRef<{ clientX: number; yaw: number } | null>(null)
   const documentHidden = useDocumentHidden()
   const placement = getNanamiPlacement(compactViewport)
+
+  useEffect(() => {
+    onReady()
+  }, [clonedScene, onReady])
 
   const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
     pointerTarget.current = clampPointerRotation(event.pointer.x, event.pointer.y)
@@ -190,13 +201,43 @@ export function NanamiModel({
   )
 }
 
-export function NanamiExperience() {
+type NanamiExperienceProps = {
+  onFailure: (error: Error) => void
+  onReady: () => void
+}
+
+export function NanamiExperience({
+  onFailure,
+  onReady,
+}: NanamiExperienceProps) {
   // Freeze the capability choice for this mount so a resize cannot start a
   // second GLB request while the first asset is still decoding.
   const [compactViewport] = useState(() => readMediaQuery(MOBILE_QUERY, true))
   const prefersReducedMotion = useMediaQuery(REDUCED_MOTION_QUERY, true)
   const [keyboardYaw, setKeyboardYaw] = useState(0)
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
+    null,
+  )
   const modelUrl = getNanamiModelUrl(compactViewport)
+
+  const handleCreated = (state: RootState) => {
+    setCanvasElement(state.gl.domElement)
+  }
+
+  useEffect(() => {
+    if (!canvasElement) return
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault()
+      onFailure(new Error('WebGL context lost'))
+    }
+
+    canvasElement.addEventListener('webglcontextlost', handleContextLost, {
+      once: true,
+    })
+    return () =>
+      canvasElement.removeEventListener('webglcontextlost', handleContextLost)
+  }, [canvasElement, onFailure])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
@@ -228,6 +269,7 @@ export function NanamiExperience() {
           antialias: true,
           powerPreference: 'high-performance',
         }}
+        onCreated={handleCreated}
       >
         <ambientLight intensity={0.75} />
         <hemisphereLight args={['#d8e9d6', '#07100b', 2.2]} />
@@ -248,6 +290,7 @@ export function NanamiExperience() {
             compactViewport={compactViewport}
             modelUrl={modelUrl}
             keyboardYaw={keyboardYaw}
+            onReady={onReady}
             prefersReducedMotion={prefersReducedMotion}
           />
         </Suspense>
