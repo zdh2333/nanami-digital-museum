@@ -1,0 +1,15 @@
+{
+  "name": "nanami-cat-museum-assets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "model:build": "node scripts/build-nanami-model.mjs",
+    "model:render": "node scripts/render-nanami-model.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.2.1",
+    "playwright-core": "^1.54.1",
+    "sharp": "^0.34.3",
+    "three": "^0.178.0"
+  }
+}
