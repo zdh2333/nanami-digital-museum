@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --color-obsidian: #070907;
+  --color-ink: #90a58f;
+  --color-ink-muted: #344139;
+  --color-ink-glow: rgb(64 107 79 / 28%);
+  --color-bone: #f1ede2;
+  --color-bone-muted: #b8b5aa;
+  --font-sans: 'Helvetica Neue', 'Neue Haas Grotesk Text Pro', Inter, Arial,
+    sans-serif;
+  --font-mono: 'SFMono-Regular', 'Cascadia Mono', 'Roboto Mono', Consolas,
+    monospace;
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-obsidian);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-obsidian);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+::selection {
+  color: var(--color-bone);
+  background: var(--color-ink-muted);
+}
+
+@layer components {
+  .museum-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.ambient-glow {
+  position: absolute;
+  z-index: -1;
+  right: -18rem;
+  bottom: -22rem;
+  width: min(80rem, 120vw);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    var(--color-ink-glow) 0%,
+    transparent 62%
+  );
+  filter: blur(2rem);
+  pointer-events: none;
+}
