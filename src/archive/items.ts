@@ -4,7 +4,7 @@ import { validateArchive } from './validate'
 const archiveSeed: readonly ArchiveItemInput[] = [
   {
     id: 'nanami-photo-001', type: 'photo', src: '/archive/photos/nanami-photo-001-1600.webp',
-    caption: 'A sun-warmed pause.', alt: 'Nanami, a black cat, resting with her eyes closed on a green chair.',
+    caption: 'A sun-warmed pause.', alt: 'Nanami, a black cat, resting on a green chair with one eye partly open.',
     faceChecked: true, featured: true, order: 1,
   },
   {
@@ -24,7 +24,7 @@ const archiveSeed: readonly ArchiveItemInput[] = [
   },
   {
     id: 'nanami-photo-005', type: 'photo', src: '/archive/photos/nanami-photo-005-1600.webp',
-    caption: 'Chair claimed.', alt: 'Nanami sleeping curled into a green upholstered chair.',
+    caption: 'Chair claimed.', alt: 'Nanami sleeping lengthwise in a green upholstered chair.',
     faceChecked: true, featured: false, order: 5,
   },
   {
@@ -34,12 +34,12 @@ const archiveSeed: readonly ArchiveItemInput[] = [
   },
   {
     id: 'nanami-photo-007', type: 'photo', src: '/archive/photos/nanami-photo-007-1600.webp',
-    caption: 'A quiet watch from above.', alt: 'Nanami peeking from a raised sleeping nook.',
+    caption: 'A quiet watch from above.', alt: 'Nanami resting with her head visible above a cushion in a raised bed nook.',
     faceChecked: true, featured: false, order: 7,
   },
   {
     id: 'nanami-photo-008', type: 'photo', src: '/archive/photos/nanami-photo-008-1600.webp',
-    caption: 'Upstairs, still in charge.', alt: 'Nanami sitting upright in a raised bed nook.',
+    caption: 'Upstairs, still in charge.', alt: 'Nanami lying sideways in a raised bed nook.',
     faceChecked: true, featured: false, order: 8,
   },
   {
@@ -64,7 +64,7 @@ const archiveSeed: readonly ArchiveItemInput[] = [
   },
   {
     id: 'nanami-photo-016', type: 'photo', src: '/archive/photos/nanami-photo-016-1600.webp',
-    caption: 'Maximum stretch.', alt: 'Nanami stretched across a striped bed with her mouth open.',
+    caption: 'Maximum stretch.', alt: 'Nanami stretched across a striped bed.',
     faceChecked: true, featured: false, order: 16,
   },
   {
@@ -74,7 +74,7 @@ const archiveSeed: readonly ArchiveItemInput[] = [
   },
   {
     id: 'nanami-meme-002', type: 'meme', src: '/archive/memes/nanami-meme-002-1600.webp',
-    caption: 'Closed-door policy.', alt: 'Nanami peeking from a nook above the words Closed door? Unacceptable.',
+    caption: 'Closed-door policy.', alt: 'Nanami resting in a nook above the words Closed door? Unacceptable.',
     faceChecked: true, featured: false, order: 18,
   },
   {

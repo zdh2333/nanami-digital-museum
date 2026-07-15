@@ -18,6 +18,17 @@ const filters: readonly { value: ArchiveFilter; label: string }[] = [
   { value: 'meme', label: 'Memes' },
 ]
 
+const archiveCardSizes = '(max-width: 767px) min(75vw, 304px), (max-width: 1000px) 240px, (max-width: 1333px) 24vw, 320px'
+
+function responsiveCardSource(src: string) {
+  if (!src.endsWith('-1600.webp')) return { src }
+  const compactSrc = src.replace(/-1600\.webp$/, '-640.webp')
+  return {
+    src: compactSrc,
+    srcSet: `${compactSrc} 640w, ${src} 1600w`,
+  }
+}
+
 function ArchiveCard({
   item,
   onOpen,
@@ -26,6 +37,7 @@ function ArchiveCard({
   onOpen: (opener: HTMLButtonElement) => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
+  const responsiveSource = responsiveCardSource(item.src)
 
   useEffect(() => setImageFailed(false), [item.src])
 
@@ -47,7 +59,9 @@ function ArchiveCard({
           </span>
         ) : (
           <img
-            src={item.src}
+            src={responsiveSource.src}
+            srcSet={responsiveSource.srcSet}
+            sizes={responsiveSource.srcSet ? archiveCardSizes : undefined}
             alt={item.alt}
             loading="lazy"
             decoding="async"

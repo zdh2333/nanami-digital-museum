@@ -1,11 +1,17 @@
-import { rm, mkdir, readdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { lstat, readFile, rm, mkdir, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import sharp from 'sharp'
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
-const sourceRoot = join(projectRoot, 'assets', 'source', 'archive')
+const sourceRoot = process.env.NANAMI_ARCHIVE_SOURCE_ROOT
+  ? process.env.NANAMI_ARCHIVE_SOURCE_ROOT
+  : join(projectRoot, 'assets', 'source', 'archive')
+const manifestPath = process.env.NANAMI_ARCHIVE_MANIFEST
+  ? process.env.NANAMI_ARCHIVE_MANIFEST
+  : join(projectRoot, 'assets', 'source', 'archive-manifest.json')
 const publicRoot = join(projectRoot, 'public', 'archive')
 
 const memeSpecs = [
@@ -17,15 +23,46 @@ const memeSpecs = [
   { id: '008', source: 'nanami-photo-001.webp', lines: ['BUSY.', 'TRY LATER.'] },
 ]
 
-const safeSourceNames = [
-  'nanami-photo-001.webp', 'nanami-photo-002.webp', 'nanami-photo-003.webp',
-  'nanami-photo-004.webp', 'nanami-photo-005.webp', 'nanami-photo-006.webp',
-  'nanami-photo-007.webp', 'nanami-photo-008.webp', 'nanami-photo-009.webp',
-  'nanami-photo-012.webp', 'nanami-photo-014.webp', 'nanami-photo-015.webp',
-  'nanami-photo-016.webp',
-]
-
 const variants = [640, 1600]
+
+async function loadReviewedManifest(path) {
+  const manifest = JSON.parse(await readFile(path, 'utf8'))
+  if (!manifest || Array.isArray(manifest) || typeof manifest !== 'object') {
+    throw new Error('Reviewed source manifest must be an object')
+  }
+
+  for (const [filename, hash] of Object.entries(manifest)) {
+    if (!/^nanami-photo-\d{3}\.webp$/.test(filename) || !/^[a-f0-9]{64}$/.test(hash)) {
+      throw new Error('Reviewed source manifest contains an invalid filename or SHA-256')
+    }
+  }
+  return manifest
+}
+
+async function verifyReviewedSources(directory, manifest) {
+  const approvedNames = Object.keys(manifest).sort()
+  const actualNames = (await readdir(directory)).sort()
+  if (actualNames.join('\n') !== approvedNames.join('\n')) {
+    throw new Error('Source masters differ from the privacy-reviewed exact set')
+  }
+
+  for (const filename of approvedNames) {
+    const path = join(directory, filename)
+    const stats = await lstat(path)
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Reviewed source must not be a symbolic link: ${filename}`)
+    }
+    if (!stats.isFile()) {
+      throw new Error(`Reviewed source must be a regular file: ${filename}`)
+    }
+    const actualHash = createHash('sha256').update(await readFile(path)).digest('hex')
+    if (actualHash !== manifest[filename]) {
+      throw new Error(`SHA-256 mismatch for reviewed source: ${filename}`)
+    }
+  }
+
+  return approvedNames
+}
 
 function escapeXml(value) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -79,13 +116,8 @@ async function buildMeme(spec, width) {
 }
 
 async function main() {
-  const sourceNames = (await readdir(sourceRoot))
-    .filter((name) => /^nanami-photo-\d{3}\.webp$/.test(name))
-    .sort()
-
-  if (sourceNames.join('\n') !== safeSourceNames.join('\n')) {
-    throw new Error(`Source masters differ from the privacy-reviewed safe set`)
-  }
+  const manifest = await loadReviewedManifest(manifestPath)
+  const sourceNames = await verifyReviewedSources(sourceRoot, manifest)
 
   await rm(publicRoot, { recursive: true, force: true })
   await mkdir(join(publicRoot, 'photos'), { recursive: true })

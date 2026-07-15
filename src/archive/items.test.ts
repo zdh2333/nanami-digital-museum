@@ -24,4 +24,16 @@ describe('curated Nanami archive', () => {
       expect(item.displayDate).toBeUndefined()
     }
   })
+
+  it('keeps factual alt text aligned with the final reviewed images', () => {
+    expect(archiveItems.find(({ id }) => id === 'nanami-photo-001')?.alt).toBe(
+      'Nanami, a black cat, resting on a green chair with one eye partly open.',
+    )
+    expect(archiveItems.find(({ id }) => id === 'nanami-photo-008')?.alt).toBe(
+      'Nanami lying sideways in a raised bed nook.',
+    )
+    expect(archiveItems.find(({ id }) => id === 'nanami-photo-016')?.alt).toBe(
+      'Nanami stretched across a striped bed.',
+    )
+  })
 })

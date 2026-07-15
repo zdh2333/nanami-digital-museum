@@ -12,7 +12,7 @@ const items = [
   {
     id: 'window-watch',
     type: 'photo',
-    src: '/archive/window-watch.webp',
+    src: '/archive/window-watch-1600.webp',
     caption: 'Window watch.',
     alt: 'Nanami watching the street from a window',
     displayDate: 'July 2026',
@@ -23,7 +23,7 @@ const items = [
   {
     id: 'door-inspector',
     type: 'meme',
-    src: '/archive/door-inspector.webp',
+    src: '/archive/door-inspector-1600.webp',
     caption: 'No closed doors.',
     alt: 'Nanami inspecting a closed door',
     faceChecked: true,
@@ -68,6 +68,24 @@ describe('Mood archive viewer', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(within(dialog).getByAltText(items[0].alt)).toBeVisible()
     expect(screen.getByRole('button', { name: /close archive viewer/i })).toHaveFocus()
+  })
+
+  it('uses responsive 640px cards and keeps the 1600px asset for the viewer', () => {
+    renderArchive()
+
+    const cardImage = screen.getByAltText(items[0].alt)
+    expect(cardImage).toHaveAttribute('src', '/archive/window-watch-640.webp')
+    expect(cardImage).toHaveAttribute(
+      'srcset',
+      '/archive/window-watch-640.webp 640w, /archive/window-watch-1600.webp 1600w',
+    )
+    expect(cardImage).toHaveAttribute('sizes', expect.stringContaining('320px'))
+
+    fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
+    expect(within(screen.getByRole('dialog')).getByAltText(items[0].alt)).toHaveAttribute(
+      'src',
+      '/archive/window-watch-1600.webp',
+    )
   })
 
   it('moves forward and backward with the arrow keys', () => {
