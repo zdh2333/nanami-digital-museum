@@ -102,7 +102,7 @@ export function MoodArchive({
   }, [])
 
   return (
-    <section ref={sectionRef} id="mood-archive" className="anchor-target museum-section mood-archive" aria-labelledby="mood-archive-title" tabIndex={-1}>
+    <section ref={sectionRef} id="mood-archive" data-museum-section="mood-archive" className="anchor-target museum-section mood-archive" aria-labelledby="mood-archive-title" tabIndex={-1}>
       <SectionReveal className="mood-archive__copy" staticExperience={staticExperience}>
         <p className="museum-label text-ink">Expressions, documented</p>
         <h2 id="mood-archive-title">MOOD ARCHIVE</h2>

@@ -15,6 +15,7 @@ export function App() {
       <Navigation />
       <section
         id="hero"
+        data-museum-section="hero"
         className="anchor-target hero-section"
         aria-labelledby="museum-title"
       >

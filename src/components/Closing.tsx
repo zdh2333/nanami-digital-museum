@@ -4,7 +4,7 @@ type ClosingProps = { staticExperience: boolean }
 
 export function Closing({ staticExperience }: ClosingProps) {
   return (
-    <section id="closing" className="anchor-target museum-section closing" aria-labelledby="closing-title">
+    <section id="closing" data-museum-section="closing" className="anchor-target museum-section closing" aria-labelledby="closing-title">
       <div className="closing__gaze" aria-hidden="true"><i /><i /></div>
       <SectionReveal className="closing__copy" staticExperience={staticExperience}>
         <p className="museum-label text-ink">End of page · not of patrol</p>
