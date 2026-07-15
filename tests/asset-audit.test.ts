@@ -158,4 +158,36 @@ describe('public asset privacy audit', () => {
     expect(result.stderr).toMatch(/symlinks are not allowed/i)
     expect(result.stdout).not.toContain('Asset privacy audit passed')
   })
+
+  it('rejects an archive root that is itself a symlink without following it', async () => {
+    const directory = await createArchiveDirectory()
+    const outsideDirectory = join(directory, 'outside')
+    const linkedRoot = join(directory, 'archive-link')
+    await mkdir(outsideDirectory)
+    const cleanImage = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: '#000000' },
+    })
+      .webp()
+      .toBuffer()
+    await writeFile(join(outsideDirectory, 'outside.webp'), cleanImage)
+    await symlink(outsideDirectory, linkedRoot)
+
+    const result = runAudit(linkedRoot)
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/archive root.*symlink/i)
+    expect(result.stdout).not.toContain('Asset privacy audit passed')
+  })
+
+  it('rejects an archive root that is not a directory', async () => {
+    const directory = await createArchiveDirectory()
+    const fileRoot = join(directory, 'archive-file')
+    await writeFile(fileRoot, 'not a directory')
+
+    const result = runAudit(fileRoot)
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/archive root.*not a directory/i)
+    expect(result.stdout).not.toContain('Asset privacy audit passed')
+  })
 })

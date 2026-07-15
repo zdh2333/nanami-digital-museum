@@ -12,6 +12,25 @@ const archiveRoot =
     : join(projectRoot, 'public', 'archive')
 const supportedExtensions = new Set(['.jpeg', '.jpg', '.png', '.webp'])
 
+async function assertArchiveRoot(directory) {
+  let stats
+  try {
+    stats = await lstat(directory)
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      throw new Error(`Archive root does not exist: ${directory}`)
+    }
+    throw error
+  }
+
+  if (stats.isSymbolicLink()) {
+    throw new Error(`Archive root must not be a symlink: ${directory}`)
+  }
+  if (!stats.isDirectory()) {
+    throw new Error(`Archive root is not a directory: ${directory}`)
+  }
+}
+
 async function collectFiles(directory) {
   let entries
   try {
@@ -85,6 +104,7 @@ async function inspectImage(file) {
 }
 
 async function main() {
+  await assertArchiveRoot(archiveRoot)
   const files = await collectFiles(archiveRoot)
   const violations = []
 

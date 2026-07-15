@@ -47,6 +47,25 @@ describe('validateArchive', () => {
   })
 
   it.each([
+    '/archive/%2e%2e/private.jpg',
+    '%2Farchive/nanami.jpg',
+    '/archive/%2E%2e/private.jpg',
+    '/archive/%252e%252e/private.jpg',
+    '/archive/safe%2F..%2Fprivate.jpg',
+    '/archive/%5c..%5cprivate.jpg',
+    '/archive/./private.jpg',
+    '/archive/nanami.jpg?source=private',
+    '/archive/nanami.jpg#private',
+    '/archive/nanami%3Fprivate.jpg',
+    '/archive/nanami%23private.jpg',
+    '/archive/incomplete%',
+    '/archive/incomplete%2',
+    '/archive/invalid%zz.jpg',
+  ])('rejects unsafe or malformed encoded archive path %s', (src) => {
+    expect(() => validateArchive([validPhoto({ src })])).toThrow(/archive.*path/i)
+  })
+
+  it.each([
     ['blank ID', { id: '   ' }, /id/i],
     ['malformed ID', { id: 'Nanami Cat!' }, /id/i],
     ['blank caption', { caption: '' }, /caption/i],

@@ -1,5 +1,28 @@
 import type { ArchiveItem, ArchiveItemInput } from './types'
 
+function isSafeArchivePath(src: unknown): src is string {
+  if (typeof src !== 'string' || !src.startsWith('/archive/')) return false
+
+  let decodedPath: string
+  try {
+    decodedPath = decodeURIComponent(src)
+  } catch {
+    return false
+  }
+
+  if (
+    !decodedPath.startsWith('/archive/') ||
+    decodedPath.length === '/archive/'.length ||
+    decodedPath.includes('%') ||
+    /[\\\0?#]/.test(decodedPath)
+  ) {
+    return false
+  }
+
+  const segments = decodedPath.slice('/archive/'.length).split('/')
+  return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+}
+
 export function validateArchive(items: readonly ArchiveItemInput[]): readonly ArchiveItem[] {
   const ids = new Set<string>()
 
@@ -10,12 +33,7 @@ export function validateArchive(items: readonly ArchiveItemInput[]): readonly Ar
     if (item.type !== 'photo' && item.type !== 'meme') {
       throw new Error(`Archive item "${item.id}" has an invalid type`)
     }
-    if (
-      typeof item.src !== 'string' ||
-      !item.src.startsWith('/archive/') ||
-      item.src.length === '/archive/'.length ||
-      item.src.includes('..')
-    ) {
+    if (!isSafeArchivePath(item.src)) {
       throw new Error(`Archive item "${item.id}" must use a public /archive/ path`)
     }
     if (typeof item.caption !== 'string' || item.caption.trim().length === 0) {
