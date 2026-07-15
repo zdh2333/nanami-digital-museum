@@ -11,4 +11,14 @@ describe('Nanami Cat museum shell', () => {
       screen.getByRole('heading', { level: 1, name: /one black cat/i }),
     ).toBeVisible()
   })
+
+  it('pairs the hero copy with Nanami’s accessible static portrait initially', () => {
+    render(<App />)
+
+    expect(
+      screen.getByAltText(
+        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
+      ),
+    ).toBeVisible()
+  })
 })

@@ -77,3 +77,61 @@ a {
   filter: blur(2rem);
   pointer-events: none;
 }
+
+.hero-visual {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 0 auto;
+  width: min(72rem, 72vw);
+  height: 100%;
+}
+
+.hero-visual > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 38%;
+  opacity: 0.74;
+  filter: saturate(0.82) brightness(0.64) contrast(1.14);
+}
+
+.hero-3d-canvas,
+.hero-3d-canvas canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-3d-canvas {
+  cursor: grab;
+  touch-action: none;
+}
+
+.hero-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.hero-3d-canvas:focus-visible {
+  outline: 1px solid var(--color-ink);
+  outline-offset: -0.5rem;
+}
+
+.hero-vignette {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(7 9 7 / 94%) 0%, rgb(7 9 7 / 62%) 42%, transparent 76%),
+    linear-gradient(0deg, rgb(7 9 7 / 88%) 0%, transparent 56%);
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .hero-visual {
+    width: 100%;
+  }
+
+  .hero-vignette {
+    background: linear-gradient(0deg, rgb(7 9 7 / 96%) 0%, transparent 72%);
+  }
+}
