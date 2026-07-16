@@ -82,7 +82,8 @@ test.describe('desktop museum', () => {
     await page.goto('/')
     await waitForImage(page.getByRole('img', { name: heroAlt }))
 
-    await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
+    await expect(page.getByText('Cinematic portrait', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'He runs the house.' })).toBeAttached()
     await expect(page.getByText('Right-angle tail tip', { exact: true })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'Mood Archive' })).toBeAttached()
@@ -92,6 +93,22 @@ test.describe('desktop museum', () => {
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true)
     expect(failures).toEqual([])
+  })
+
+  test('keeps localized archival hero metadata visibly present on desktop', async ({ page }) => {
+    await page.goto('/')
+
+    const hero = page.locator('#hero')
+    const metadata = hero.locator('.hero-mobile-copy')
+    await expect(hero.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
+    await expect(hero.getByText('NNM_000001', { exact: false })).toBeVisible()
+    await expect(hero.getByText('Cinematic portrait', { exact: true })).toBeVisible()
+    await expect.poll(async () => (await metadata.boundingBox())?.width ?? 0).toBeGreaterThan(160)
+    await expect(metadata).toHaveCSS('clip', 'auto')
+
+    await page.getByRole('button', { name: '中文' }).click()
+    await expect(hero.getByRole('heading', { name: '一只黑猫。 无数种表情。' })).toBeVisible()
+    await expect(hero.getByText('艺术化肖像', { exact: true })).toBeVisible()
   })
 
   test('keyboard navigation scrolls below the fixed header and updates the hash', async ({ page }) => {
@@ -229,6 +246,15 @@ test.describe('mobile safety', () => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile-only coverage')
   })
 
+  test('keeps localized archival hero metadata visible on mobile', async ({ page }) => {
+    await page.goto('/')
+    const hero = page.locator('#hero')
+
+    await expect(hero.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
+    await expect(hero.getByText('NNM_000001', { exact: false })).toBeVisible()
+    await expect(hero.getByText('Cinematic portrait', { exact: true })).toBeVisible()
+  })
+
   test('mobile menu navigates to the archive and closes', async ({ page }) => {
     await page.goto('/')
     const menu = page.getByRole('button', { name: 'Menu' })
@@ -256,6 +282,7 @@ test.describe('mobile safety', () => {
     await waitForImage(page.getByRole('img', { name: heroAlt }))
     await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
     await expect(page.locator('.hero-mobile-copy p')).toContainText('NNM_000001')
+    await expect(page.getByText('Cinematic portrait', { exact: true })).toBeVisible()
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true)

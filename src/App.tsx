@@ -26,7 +26,7 @@ export function App() {
           <HeroPortrait />
         </div>
         <div className="hero-mobile-copy">
-          <h1 id="museum-title">{heroLead}<br />{heroFollow}</h1>
+          <h1 id="museum-title">{heroLead}<br />{' '}{heroFollow}</h1>
           <p className="hero-mobile-copy__index">
             <span>{copy.hero.archiveIndex}</span> NNM_000001
             <span className="hero-mobile-copy__disclosure">{copy.hero.disclosure}</span>
