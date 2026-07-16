@@ -12,10 +12,13 @@ const items = [
   {
     id: 'window-watch',
     type: 'photo',
-    src: '/archive/window-watch-1600.webp',
-    caption: 'Window watch.',
-    alt: 'Nanami watching the street from a window',
-    displayDate: 'July 2026',
+    collections: ['photos', 'portraits'],
+    src640: '/archive/window-watch-640.webp',
+    src1600: '/archive/window-watch-1600.webp',
+    caption: { en: 'Window watch.', 'zh-CN': '窗边巡视。' },
+    alt: { en: 'Nanami watching the street from a window', 'zh-CN': '七海在窗边看街道。' },
+    story: { en: 'A quiet watch.', 'zh-CN': '安静地巡视。' },
+    captureDate: '2026-07-01',
     faceChecked: true,
     featured: true,
     order: 1,
@@ -23,9 +26,12 @@ const items = [
   {
     id: 'door-inspector',
     type: 'meme',
-    src: '/archive/door-inspector-1600.webp',
-    caption: 'No closed doors.',
-    alt: 'Nanami inspecting a closed door',
+    collections: ['memes'],
+    src640: '/archive/door-inspector-640.webp',
+    src1600: '/archive/door-inspector-1600.webp',
+    caption: { en: 'No closed doors.', 'zh-CN': '不许关门。' },
+    alt: { en: 'Nanami inspecting a closed door', 'zh-CN': '七海正在检查一扇关上的门。' },
+    story: { en: 'Every door is inspected.', 'zh-CN': '每扇门都要检查。' },
     faceChecked: true,
     featured: false,
     order: 2,
@@ -66,14 +72,14 @@ describe('Mood archive viewer', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Window watch.' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
-    expect(within(dialog).getByAltText(items[0].alt)).toBeVisible()
+    expect(within(dialog).getByAltText(items[0].alt.en)).toBeVisible()
     expect(screen.getByRole('button', { name: /close archive viewer/i })).toHaveFocus()
   })
 
   it('uses responsive 640px cards and keeps the 1600px asset for the viewer', () => {
     renderArchive()
 
-    const cardImage = screen.getByAltText(items[0].alt)
+    const cardImage = screen.getByAltText(items[0].alt.en)
     expect(cardImage).toHaveAttribute('src', '/archive/window-watch-640.webp')
     expect(cardImage).toHaveAttribute(
       'srcset',
@@ -82,7 +88,7 @@ describe('Mood archive viewer', () => {
     expect(cardImage).toHaveAttribute('sizes', expect.stringContaining('320px'))
 
     fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
-    expect(within(screen.getByRole('dialog')).getByAltText(items[0].alt)).toHaveAttribute(
+    expect(within(screen.getByRole('dialog')).getByAltText(items[0].alt.en)).toHaveAttribute(
       'src',
       '/archive/window-watch-1600.webp',
     )
@@ -254,17 +260,17 @@ describe('Mood archive viewer', () => {
 
   it('replaces failed thumbnail and viewer images with accessible placeholders', () => {
     renderArchive()
-    const thumbnail = screen.getByAltText(items[0].alt)
+    const thumbnail = screen.getByAltText(items[0].alt.en)
 
     fireEvent.error(thumbnail)
     expect(screen.getByRole('status', { name: /image unavailable/i })).toBeVisible()
-    expect(screen.getByText(items[0].caption)).toBeVisible()
+    expect(screen.getByText(items[0].caption.en)).toBeVisible()
 
     fireEvent.click(
       screen.getByRole('button', { name: /view window watch/i }),
     )
-    const dialog = screen.getByRole('dialog', { name: items[0].caption })
-    fireEvent.error(within(dialog).getByAltText(items[0].alt))
+    const dialog = screen.getByRole('dialog', { name: items[0].caption.en })
+    fireEvent.error(within(dialog).getByAltText(items[0].alt.en))
 
     expect(
       within(dialog).getByRole('status', { name: /image unavailable/i }),
@@ -273,7 +279,7 @@ describe('Mood archive viewer', () => {
       within(dialog).getByRole('button', { name: /next archive item/i }),
     ).toBeEnabled()
     expect(dialog.textContent).not.toContain(items[0].id)
-    expect(dialog.textContent).not.toContain(items[0].src)
+    expect(dialog.textContent).not.toContain(items[0].src1600)
   })
 
   it('allows both horizontal ribbon swipes and vertical page gestures', () => {

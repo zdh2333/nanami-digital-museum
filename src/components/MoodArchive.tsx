@@ -20,15 +20,6 @@ const filters: readonly { value: ArchiveFilter; label: string }[] = [
 
 const archiveCardSizes = '(max-width: 767px) min(75vw, 304px), (max-width: 1000px) 240px, (max-width: 1333px) 24vw, 320px'
 
-function responsiveCardSource(src: string) {
-  if (!src.endsWith('-1600.webp')) return { src }
-  const compactSrc = src.replace(/-1600\.webp$/, '-640.webp')
-  return {
-    src: compactSrc,
-    srcSet: `${compactSrc} 640w, ${src} 1600w`,
-  }
-}
-
 function ArchiveCard({
   item,
   onOpen,
@@ -37,15 +28,14 @@ function ArchiveCard({
   onOpen: (opener: HTMLButtonElement) => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
-  const responsiveSource = responsiveCardSource(item.src)
 
-  useEffect(() => setImageFailed(false), [item.src])
+  useEffect(() => setImageFailed(false), [item.src640, item.src1600])
 
   return (
     <button
       className="archive-card"
       type="button"
-      aria-label={`View ${item.caption}`}
+      aria-label={`View ${item.caption.en}`}
       onClick={(event) => onOpen(event.currentTarget)}
     >
       <span className="archive-card__image">
@@ -59,10 +49,10 @@ function ArchiveCard({
           </span>
         ) : (
           <img
-            src={responsiveSource.src}
-            srcSet={responsiveSource.srcSet}
-            sizes={responsiveSource.srcSet ? archiveCardSizes : undefined}
-            alt={item.alt}
+            src={item.src640}
+            srcSet={`${item.src640} 640w, ${item.src1600} 1600w`}
+            sizes={archiveCardSizes}
+            alt={item.alt.en}
             loading="lazy"
             decoding="async"
             onError={() => setImageFailed(true)}
@@ -71,8 +61,8 @@ function ArchiveCard({
       </span>
       <span className="archive-card__meta">
         <span className="museum-label text-ink">{item.type}</span>
-        <span>{item.caption}</span>
-        {item.displayDate ? <time>{item.displayDate}</time> : null}
+        <span>{item.caption.en}</span>
+        {item.captureDate ? <time dateTime={item.captureDate}>{item.captureDate}</time> : null}
       </span>
     </button>
   )

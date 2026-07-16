@@ -123,7 +123,7 @@ export function ArchiveViewer({
     if (overlayRef.current) overlayRef.current.inert = !isTopmost
   }, [isTopmost])
 
-  useEffect(() => setImageFailed(false), [item?.src])
+  useEffect(() => setImageFailed(false), [item?.src1600])
 
   useEffect(() => {
     if (!item) {
@@ -221,16 +221,16 @@ export function ArchiveViewer({
               </div>
             ) : (
               <img
-                src={item.src}
-                alt={item.alt}
+                src={item.src1600}
+                alt={item.alt.en}
                 onError={() => setImageFailed(true)}
               />
             )}
           </div>
           <figcaption>
             <span className="museum-label text-ink">{item.type}</span>
-            <h3 id={captionId}>{item.caption}</h3>
-            {item.displayDate ? <time>{item.displayDate}</time> : null}
+            <h3 id={captionId}>{item.caption.en}</h3>
+            {item.captureDate ? <time dateTime={item.captureDate}>{item.captureDate}</time> : null}
           </figcaption>
         </figure>
         <div className="archive-viewer__controls">
