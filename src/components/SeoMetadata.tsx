@@ -63,13 +63,6 @@ function structuredData() {
           },
         },
         disambiguatingDescription: `A ${nanamiProfile.alive ? 'living ' : ''}${nanamiProfile.coat} ${nanamiProfile.species}.`,
-        additionalProperty: [
-          {
-            '@type': 'PropertyValue',
-            name: 'alive',
-            value: nanamiProfile.alive,
-          },
-        ],
       },
     ],
   }
@@ -87,6 +80,10 @@ export function SeoMetadata() {
     upsertMeta('meta[property="og:title"]', { property: 'og:title', content: metadata.title })
     upsertMeta('meta[property="og:description"]', { property: 'og:description', content: metadata.description })
     upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: metadata.openGraphLocale })
+    upsertMeta('meta[property="og:locale:alternate"]', {
+      property: 'og:locale:alternate',
+      content: locale === 'en' ? 'zh_CN' : 'en_US',
+    })
     upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' })
     upsertMeta('meta[property="og:url"]', { property: 'og:url', content: canonicalUrl })
     upsertMeta('meta[property="og:image"]', { property: 'og:image', content: socialImageUrl })

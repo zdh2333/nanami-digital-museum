@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -64,6 +64,8 @@ describe('share asset builder', () => {
       expect(metadata.iptc).toBeUndefined()
       expect(metadata.xmp).toBeUndefined()
     }
+
+    expect((await stat(join(firstRoot, 'favicon.png'))).size).toBeLessThan(200_000)
 
     const expectedCenteredCard = await sharp(
       join(projectRoot, 'public/hero/nanami-cinematic-hero.webp'),

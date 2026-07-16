@@ -48,6 +48,8 @@ describe('SeoMetadata', () => {
     )
     expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
     expect(meta('meta[property="og:locale"]')?.content).toBe('en_US')
+    expect(document.head.querySelectorAll('meta[property="og:locale:alternate"]')).toHaveLength(1)
+    expect(meta('meta[property="og:locale:alternate"]')?.content).toBe('zh_CN')
     expect(meta('meta[name="twitter:card"]')?.content).toBe('summary_large_image')
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
@@ -79,6 +81,8 @@ describe('SeoMetadata', () => {
     )
     expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
     expect(meta('meta[property="og:locale"]')?.content).toBe('zh_CN')
+    expect(document.head.querySelectorAll('meta[property="og:locale:alternate"]')).toHaveLength(1)
+    expect(meta('meta[property="og:locale:alternate"]')?.content).toBe('en_US')
     expect(meta('meta[name="twitter:title"]')?.content).toBe(document.title)
     expect(localStorage.getItem('nanami-locale')).toBe('zh-CN')
 
@@ -111,11 +115,8 @@ describe('SeoMetadata', () => {
       },
       disambiguatingDescription: 'A living black cat.',
     })
-    expect(nanami.additionalProperty).toContainEqual({
-      '@type': 'PropertyValue',
-      name: 'alive',
-      value: nanamiProfile.alive,
-    })
+    expect(nanami.disambiguatingDescription).toBe('A living black cat.')
+    expect(nanami).not.toHaveProperty('additionalProperty')
 
     const serialized = JSON.stringify(graph).toLowerCase()
     expect(serialized).not.toMatch(/person|memorial|deceased|female/)

@@ -32,7 +32,14 @@ async function main() {
   await sharp(faviconSource, { failOn: 'error' })
     .rotate()
     .resize(512, 512, { fit: 'cover', position: sharp.strategy.attention })
-    .png({ compressionLevel: 9 })
+    .png({
+      compressionLevel: 9,
+      palette: true,
+      quality: 90,
+      effort: 10,
+      colours: 256,
+      dither: 0.8,
+    })
     .toFile(faviconOutput)
 
   await sharp(socialSource, { failOn: 'error' })

@@ -53,6 +53,31 @@ describe('public asset privacy audit', () => {
     expect(result.stdout).toContain('Asset privacy audit passed (1 files checked)')
   })
 
+  it.each([
+    ['GIF', 'preview.gif'],
+    ['SVG', 'preview.svg'],
+    ['AVIF', 'preview.avif'],
+  ])('fails closed for unsupported image-like %s assets', async (_format, filename) => {
+    const directory = await createArchiveDirectory()
+    await writeFile(join(directory, filename), 'unsupported image placeholder')
+
+    const result = runAudit(directory)
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(`Unsupported public image asset format: ${filename}`)
+    expect(result.stdout).not.toContain('Asset privacy audit passed')
+  })
+
+  it('ignores non-image public files', async () => {
+    const directory = await createArchiveDirectory()
+    await writeFile(join(directory, 'robots.txt'), 'User-agent: *\nAllow: /')
+
+    const result = runAudit(directory)
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Asset privacy audit passed (0 files checked)')
+  })
+
   it('audits hero, social, and favicon images when they are under the configured public root', async () => {
     const directory = await createArchiveDirectory()
     await mkdir(join(directory, 'hero'))

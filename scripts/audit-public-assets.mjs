@@ -11,6 +11,25 @@ const auditRoot =
     ? resolve(process.env.NANAMI_ARCHIVE_ROOT)
     : join(projectRoot, 'public')
 const supportedExtensions = new Set(['.jpeg', '.jpg', '.png', '.webp'])
+const imageLikeExtensions = new Set([
+  ...supportedExtensions,
+  '.apng',
+  '.avif',
+  '.bmp',
+  '.dng',
+  '.eps',
+  '.gif',
+  '.heic',
+  '.heif',
+  '.ico',
+  '.jfif',
+  '.jxl',
+  '.psd',
+  '.raw',
+  '.svg',
+  '.tif',
+  '.tiff',
+])
 
 async function assertArchiveRoot(directory) {
   let stats
@@ -49,8 +68,15 @@ async function collectFiles(directory) {
     if (stats.isSymbolicLink()) {
       throw new Error(`Symlinks are not allowed in public/archive assets: ${relative(auditRoot, path)}`)
     }
-    if (stats.isDirectory()) files.push(...(await collectFiles(path)))
-    else if (stats.isFile() && supportedExtensions.has(extname(entry.name).toLowerCase())) files.push(path)
+    if (stats.isDirectory()) {
+      files.push(...(await collectFiles(path)))
+    } else if (stats.isFile()) {
+      const extension = extname(entry.name).toLowerCase()
+      if (imageLikeExtensions.has(extension) && !supportedExtensions.has(extension)) {
+        throw new Error(`Unsupported public image asset format: ${relative(auditRoot, path)}`)
+      }
+      if (supportedExtensions.has(extension)) files.push(path)
+    }
   }
   return files
 }
