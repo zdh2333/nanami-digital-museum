@@ -15,13 +15,23 @@ export const nanamiProfile = Object.freeze({
   alive: true,
 });
 
-export function getNanamiAge(now = new Date()): number {
-  const birthYear = 2021;
-  const birthdayMonthIndex = 3;
-  const birthdayDay = 1;
-  const beforeBirthday =
-    now.getMonth() < birthdayMonthIndex ||
-    (now.getMonth() === birthdayMonthIndex && now.getDate() < birthdayDay);
+const tokyoCalendar = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Tokyo',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+});
 
-  return now.getFullYear() - birthYear - Number(beforeBirthday);
+export function getNanamiAge(now = new Date()): number {
+  const [birthYear, birthMonth, birthDay] = nanamiProfile.birthDate
+    .split('-')
+    .map(Number);
+  const nowParts = tokyoCalendar.formatToParts(now);
+  const [year, month, day] = ['year', 'month', 'day'].map((type) =>
+    Number(nowParts.find((part) => part.type === type)?.value),
+  );
+  const beforeBirthday =
+    month < birthMonth || (month === birthMonth && day < birthDay);
+
+  return year - birthYear - Number(beforeBirthday);
 }

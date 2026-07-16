@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getNanamiAge, nanamiProfile } from './nanami';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('nanamiProfile', () => {
   it('contains the exact truthful profile facts', () => {
@@ -35,5 +39,11 @@ describe('getNanamiAge', () => {
     ['after the 2026 birthday', '2026-07-16T12:00:00+09:00', 5],
   ])('returns the local-calendar age %s', (_case, now, expectedAge) => {
     expect(getNanamiAge(new Date(now))).toBe(expectedAge);
+  });
+
+  it('uses the Asia/Tokyo calendar when the host timezone is UTC', () => {
+    vi.stubEnv('TZ', 'UTC');
+
+    expect(getNanamiAge(new Date('2026-04-01T00:00:00+09:00'))).toBe(5);
   });
 });
