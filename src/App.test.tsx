@@ -46,6 +46,7 @@ describe('Nanami Cat museum shell', () => {
     expect(portrait).toBeVisible()
     expect(portrait).toHaveAttribute('src', '/hero/nanami-cinematic-hero.webp')
     expect(portrait).toHaveAttribute('fetchpriority', 'high')
+    expect(portrait).toHaveAttribute('decoding', 'sync')
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 

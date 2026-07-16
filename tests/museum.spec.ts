@@ -51,6 +51,43 @@ async function settleFrames(page: Page, frames = 5) {
   }), frames)
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true)
+}
+
+async function expectVisibleControlsMeetTouchTarget(page: Page) {
+  const undersized = await page.locator('button, a[href]').evaluateAll((nodes) =>
+    nodes.flatMap((node) => {
+      const element = node as HTMLElement
+      const rect = element.getBoundingClientRect()
+      const style = getComputedStyle(element)
+      if (!rect.width || !rect.height || style.visibility === 'hidden') return []
+      return rect.width < 44 || rect.height < 44
+        ? [{
+            label: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? element.tagName,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          }]
+        : []
+    }),
+  )
+  expect(undersized).toEqual([])
+}
+
+async function switchToChinese(page: Page) {
+  const desktopLanguage = page.getByRole('button', { name: '中文' })
+  if (await desktopLanguage.isVisible()) {
+    await desktopLanguage.click()
+    return
+  }
+
+  await page.getByRole('button', { name: 'Menu' }).tap()
+  await page.getByRole('dialog', { name: 'Museum navigation' }).getByRole('button', { name: '中文' }).tap()
+  await page.keyboard.press('Escape')
+}
+
 test('presents the six museum chapters in narrative order', async ({ page }) => {
   await page.goto('/')
 
@@ -70,6 +107,29 @@ test('presents the six museum chapters in narrative order', async ({ page }) => 
   await expect(
     page.getByRole('heading', { name: 'Nanami is probably watching you.' }),
   ).toBeVisible()
+})
+
+test('keeps both locales free of runtime failures, overlays, and legacy 3D', async ({ page }) => {
+  const failures = collectRuntimeFailures(page)
+  const legacyRequests: string[] = []
+  page.on('request', (request) => {
+    if (/\.(?:glb|gltf)(?:[?#]|$)|\/models\//i.test(request.url())) {
+      legacyRequests.push(request.url())
+    }
+  })
+
+  await page.goto('/')
+  await waitForImage(page.getByRole('img', { name: heroAlt }))
+  await expect(page.locator('vite-error-overlay, nextjs-portal, [data-nextjs-dialog-overlay]')).toHaveCount(0)
+  await expect(page.locator('canvas')).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+
+  await switchToChinese(page)
+  await expect(page.getByRole('heading', { name: '一只黑猫。 无数种表情。' })).toBeVisible()
+  await waitForImage(page.getByRole('img', { name: '黑猫七海坐在昏暗的房间里，直接看向镜头。' }))
+  await expectNoHorizontalOverflow(page)
+  expect(legacyRequests).toEqual([])
+  expect(failures).toEqual([])
 })
 
 test.describe('desktop museum', () => {
@@ -221,6 +281,8 @@ test.describe('desktop museum', () => {
     await page.goto('/')
     const hero = page.getByRole('img', { name: heroAlt })
     await waitForImage(hero)
+    await expect(page.locator('[data-reveal="static"]')).toHaveCount(6)
+    await expect(page.locator('[data-reveal="animated"]')).toHaveCount(0)
     await expect(page.locator('canvas')).toHaveCount(0)
     expect(modelRequests).toEqual([])
   })
@@ -293,6 +355,84 @@ test.describe('mobile safety', () => {
     await expect(menu).toHaveAttribute('aria-expanded', 'false')
     await expect(page).toHaveURL(/#mood-archive$/)
     await expect(page.locator('#mood-archive')).toBeInViewport()
+
+    await menu.tap()
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(menu).toBeFocused()
+  })
+
+  test('preserves filter URLs across reload, back, and forward', async ({ page }) => {
+    await page.goto('/?ref=release#mood-archive')
+    await page.locator('#mood-archive').scrollIntoViewIfNeeded()
+
+    await page.getByRole('button', { name: 'Photos', exact: true }).click()
+    await expect(page).toHaveURL(/\?ref=release&collection=photos#mood-archive$/)
+    await expect(page.locator('.archive-card')).toHaveCount(16)
+    await page.getByRole('button', { name: 'Memes', exact: true }).click()
+    await expect(page).toHaveURL(/\?ref=release&collection=memes#mood-archive$/)
+    await expect(page.locator('.archive-card')).toHaveCount(6)
+
+    await page.goBack()
+    await expect(page.getByRole('button', { name: 'Photos', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.archive-card')).toHaveCount(16)
+    await page.goForward()
+    await expect(page.getByRole('button', { name: 'Memes', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Memes', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.archive-card')).toHaveCount(6)
+  })
+
+  test('shows localized viewer metadata and returns focus after touch close', async ({ page }) => {
+    await page.goto('/?collection=portraits#mood-archive')
+    await page.locator('#mood-archive').scrollIntoViewIfNeeded()
+    const opener = page.locator('.archive-card').first()
+    await opener.tap()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Date', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Story', { exact: true })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
+    await dialog.getByRole('button', { name: 'Close' }).tap()
+    await expect(dialog).toBeHidden()
+    await expect(opener).toBeFocused()
+
+    await page.getByRole('button', { name: 'Menu' }).tap()
+    await page.getByRole('dialog', { name: 'Museum navigation' }).getByRole('button', { name: '中文' }).tap()
+    await page.keyboard.press('Escape')
+    await opener.tap()
+    const localizedDialog = page.getByRole('dialog')
+    await expect(localizedDialog.getByText('日期', { exact: true })).toBeVisible()
+    await expect(localizedDialog.getByText('故事', { exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(opener).toBeFocused()
+  })
+
+  test('keeps 320px bilingual layout, controls, and reveals release-safe', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: 700 })
+    const failures = collectRuntimeFailures(page)
+    await page.goto('/')
+    await waitForImage(page.getByRole('img', { name: heroAlt }))
+    await expectNoHorizontalOverflow(page)
+    await expectVisibleControlsMeetTouchTarget(page)
+
+    for (const reveal of await page.locator('[data-reveal="animated"]').all()) {
+      await reveal.scrollIntoViewIfNeeded()
+      await expect(reveal).toBeInViewport()
+      await expect(reveal).toHaveCSS('opacity', '1')
+    }
+
+    await switchToChinese(page)
+    await expect(page.getByRole('heading', { name: '一只黑猫。 无数种表情。' })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await expectVisibleControlsMeetTouchTarget(page)
+    expect(failures).toEqual([])
+    await page.screenshot({
+      path: testInfo.outputPath('mobile-320-zh-full-page.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
   })
 
   test('loads, scrolls, navigates, filters, and avoids legacy 3D', async ({ page }, testInfo) => {
@@ -321,7 +461,10 @@ test.describe('mobile safety', () => {
     })
     await waitForImage(roomPortrait)
     await expect(page.locator('.presence__copy')).toHaveCSS('opacity', '1')
-    await expect(page.locator('.presence__media')).toHaveCSS('opacity', '1')
+    const presenceMedia = page.locator('.presence__media')
+    await presenceMedia.scrollIntoViewIfNeeded()
+    await expect(presenceMedia).toBeInViewport()
+    await expect(presenceMedia).toHaveCSS('opacity', '1')
 
     await page.getByRole('button', { name: 'Memes', exact: true }).click()
     await expect(page.locator('.archive-card')).toHaveCount(6)

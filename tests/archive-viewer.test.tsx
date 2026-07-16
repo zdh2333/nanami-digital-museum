@@ -224,7 +224,7 @@ describe('Mood archive viewer', () => {
     expect(screen.getByRole('button', { name: '关闭' })).toBeVisible()
   })
 
-  it('opens a thumbnail in an accessible dialog', () => {
+  it('opens a thumbnail in an accessible dialog', async () => {
     renderArchive()
 
     fireEvent.click(
@@ -234,7 +234,9 @@ describe('Mood archive viewer', () => {
     const dialog = screen.getByRole('dialog', { name: 'Window watch.' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(within(dialog).getByAltText(items[0].alt.en)).toBeVisible()
-    expect(screen.getByRole('button', { name: /^close$/i })).toHaveFocus()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^close$/i })).toHaveFocus()
+    })
   })
 
   it('uses responsive 640px cards and keeps the 1600px asset for the viewer', () => {

@@ -11,7 +11,7 @@ export function HeroPortrait() {
         width="1672"
         height="941"
         {...{ fetchpriority: 'high' }}
-        decoding="async"
+        decoding="sync"
       />
     </picture>
   )

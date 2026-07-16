@@ -88,7 +88,10 @@ export function ArchiveViewer({
   }, [isOpen, returnFocusFallback])
 
   useEffect(() => {
-    if (isOpen && isTopmost) closeRef.current?.focus()
+    if (!isOpen || !isTopmost) return
+
+    const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus())
+    return () => window.cancelAnimationFrame(focusFrame)
   }, [isOpen, isTopmost])
 
   useEffect(() => {
