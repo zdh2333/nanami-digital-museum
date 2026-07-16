@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App } from '../App'
+import { copy, formatBirthplace } from '../i18n/copy'
 import { LocaleProvider } from '../i18n/LocaleProvider'
 
 function renderProfile(locale: 'en' | 'zh-CN' = 'en') {
@@ -65,5 +66,25 @@ describe('Nanami profile chapter', () => {
     expect(portrait).toHaveAttribute('src', '/archive/photos/nanami-photo-002-640.webp')
     expect(portrait).toHaveAttribute('srcset', expect.stringContaining('nanami-photo-002-1600.webp'))
     expect(portrait).toHaveAttribute('loading', 'lazy')
+  })
+
+  it('localizes the canonical birthplace components instead of storing a duplicate fact', () => {
+    expect(copy.en.profile).not.toHaveProperty('birthplaceValue')
+    expect(copy['zh-CN'].profile).not.toHaveProperty('birthplaceValue')
+
+    expect(
+      formatBirthplace(
+        { city: 'Alternate City', region: 'Alternate Region', country: 'Alternate Country' },
+        {
+          names: {
+            'Alternate City': 'Localized City',
+            'Alternate Region': 'Localized Region',
+            'Alternate Country': 'Localized Country',
+          },
+          order: ['country', 'region', 'city'],
+          separator: ' / ',
+        },
+      ),
+    ).toBe('Localized Country / Localized Region / Localized City')
   })
 })

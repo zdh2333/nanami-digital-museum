@@ -1,4 +1,5 @@
 import { archiveItems } from '../archive/items'
+import { formatBirthplace } from '../i18n/copy'
 import { useLocale } from '../i18n/LocaleProvider'
 import { getNanamiAge, nanamiProfile } from '../profile/nanami'
 import { SectionReveal } from './SectionReveal'
@@ -21,7 +22,10 @@ export function Profile({ staticExperience }: ProfileProps) {
   const facts = [
     [profileCopy.age, profileCopy.formatAge(getNanamiAge())],
     [profileCopy.born, profileCopy.formatBirthDate(nanamiProfile.birthDate)],
-    [profileCopy.birthplace, profileCopy.birthplaceValue],
+    [
+      profileCopy.birthplace,
+      formatBirthplace(nanamiProfile.birthplace, profileCopy.birthplaceLocalization),
+    ],
     [profileCopy.sex, profileCopy[nanamiProfile.sex]],
   ] as const
 

@@ -1,5 +1,35 @@
 import type { Locale } from './types'
 
+export interface Birthplace {
+  city: string
+  region: string
+  country: string
+}
+
+export interface BirthplaceLocalization {
+  names: Readonly<Record<string, string>>
+  order: readonly (keyof Birthplace)[]
+  separator: string
+}
+
+export function formatBirthplace(
+  birthplace: Birthplace,
+  localization: BirthplaceLocalization,
+): string {
+  return localization.order
+    .map((part) => {
+      const canonicalName = birthplace[part]
+      const localizedName = localization.names[canonicalName]
+
+      if (!localizedName) {
+        throw new Error(`Missing birthplace translation for "${canonicalName}".`)
+      }
+
+      return localizedName
+    })
+    .join(localization.separator)
+}
+
 function formatProfileDate(locale: Locale, birthDate: string): string {
   const [year, month, day] = birthDate.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day))
@@ -32,7 +62,7 @@ export interface MuseumCopy {
     summary: string
     born: string
     birthplace: string
-    birthplaceValue: string
+    birthplaceLocalization: BirthplaceLocalization
     sex: string
     male: string
     age: string
@@ -125,7 +155,15 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
         'Nanami is a black cat with a red collar, a bent tail tip, and firm opinions about every room he enters.',
       born: 'Born',
       birthplace: 'Birthplace',
-      birthplaceValue: 'Utsunomiya, Tochigi, Japan',
+      birthplaceLocalization: {
+        names: {
+          Utsunomiya: 'Utsunomiya',
+          Tochigi: 'Tochigi',
+          Japan: 'Japan',
+        },
+        order: ['city', 'region', 'country'],
+        separator: ', ',
+      },
       sex: 'Sex',
       male: 'Male',
       age: 'Age',
@@ -225,7 +263,15 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       summary: 'Nanami 是一只戴红项圈的黑猫，尾巴尖弯成直角，对家里的每个房间都很有主见。',
       born: '出生日期',
       birthplace: '出生地',
-      birthplaceValue: '日本栃木县宇都宫市',
+      birthplaceLocalization: {
+        names: {
+          Utsunomiya: '宇都宫市',
+          Tochigi: '栃木县',
+          Japan: '日本',
+        },
+        order: ['country', 'region', 'city'],
+        separator: '',
+      },
       sex: '性别',
       male: '男',
       age: '年龄',
