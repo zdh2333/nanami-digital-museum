@@ -11,22 +11,13 @@
     "test:e2e:desktop": "playwright test --project=desktop",
     "test:e2e:mobile": "playwright test --project=mobile",
     "audit:assets": "node scripts/audit-public-assets.mjs",
-    "archive:build": "node scripts/optimize-archive-assets.mjs",
-    "model:build": "node scripts/build-nanami-model.mjs",
-    "model:browser:install": "playwright install chromium",
-    "model:render": "node scripts/render-nanami-model.mjs"
+    "archive:build": "node scripts/optimize-archive-assets.mjs"
   },
   "dependencies": {
-    "@gltf-transform/cli": "4.4.1",
-    "@gltf-transform/core": "4.4.1",
-    "@react-three/drei": "9.122.0",
-    "@react-three/fiber": "8.18.0",
     "framer-motion": "12.40.0",
-    "playwright": "1.61.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "sharp": "0.34.5",
-    "three": "0.178.0"
+    "sharp": "0.34.5"
   },
   "overrides": {
     "sharp": "0.34.5"

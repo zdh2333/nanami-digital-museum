@@ -1,12 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { App } from './App'
 import { LocaleProvider } from './i18n/LocaleProvider'
-
-vi.mock('./components/Hero3D', () => ({
-  Hero3D: () => <div data-testid="legacy-3d-hero" />,
-}))
 
 function renderApp(locale: 'en' | 'zh-CN' = 'en') {
   localStorage.setItem('nanami-locale', locale)
@@ -50,7 +46,6 @@ describe('Nanami Cat museum shell', () => {
     expect(portrait).toBeVisible()
     expect(portrait).toHaveAttribute('src', '/hero/nanami-cinematic-hero.webp')
     expect(portrait).toHaveAttribute('fetchpriority', 'high')
-    expect(screen.queryByTestId('legacy-3d-hero')).not.toBeInTheDocument()
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 
