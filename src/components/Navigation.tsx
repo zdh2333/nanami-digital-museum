@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '../i18n/LocaleProvider'
 import { MobileMenu } from './MobileMenu'
@@ -11,14 +11,21 @@ export function Navigation() {
   const { locale, setLocale, copy } = useLocale()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const brandRef = useRef<HTMLAnchorElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const navigationLabel = locale === 'zh-CN' ? '博物馆导航' : 'Museum navigation'
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const getReturnFocusTarget = useCallback(() => returnFocusRef.current, [])
 
   useEffect(() => {
     if (!menuOpen || typeof window.matchMedia !== 'function') return
 
     const desktopQuery = window.matchMedia('(min-width: 768px)')
     const closeOnDesktop = () => {
-      if (desktopQuery.matches) setMenuOpen(false)
+      if (desktopQuery.matches) {
+        returnFocusRef.current = brandRef.current
+        closeMenu()
+      }
     }
 
     closeOnDesktop()
@@ -29,12 +36,13 @@ export function Navigation() {
 
     desktopQuery.addListener(closeOnDesktop)
     return () => desktopQuery.removeListener(closeOnDesktop)
-  }, [menuOpen])
+  }, [closeMenu, menuOpen])
 
   return (
     <header className="museum-header">
       <nav aria-label={navigationLabel} className="museum-navigation">
         <a
+          ref={brandRef}
           href="#hero"
           aria-label={`Nanami ${copy.nav.home}`}
           aria-current="page"
@@ -49,7 +57,8 @@ export function Navigation() {
           ))}
           <div
             className="museum-navigation__languages"
-            aria-label={locale === 'zh-CN' ? '语言' : 'Language'}
+            role="group"
+            aria-label={copy.nav.language}
           >
             <button
               type="button"
@@ -73,7 +82,10 @@ export function Navigation() {
           type="button"
           aria-expanded={menuOpen}
           aria-controls={menuId}
-          onClick={() => setMenuOpen(true)}
+          onClick={() => {
+            returnFocusRef.current = menuTriggerRef.current
+            setMenuOpen(true)
+          }}
         >
           {copy.nav.menu}
         </button>
@@ -81,8 +93,9 @@ export function Navigation() {
       <MobileMenu
         id={menuId}
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={closeMenu}
         triggerRef={menuTriggerRef}
+        getReturnFocusTarget={getReturnFocusTarget}
       />
     </header>
   )

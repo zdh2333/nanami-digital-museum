@@ -51,6 +51,7 @@ export interface MuseumCopy {
     timeline: string
     menu: string
     close: string
+    language: string
   }
   hero: {
     title: string
@@ -143,6 +144,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       timeline: 'Timeline',
       menu: 'Menu',
       close: 'Close',
+      language: 'Language',
     },
     hero: {
       title: 'ONE BLACK CAT.\nMANY MOODS.',
@@ -252,6 +254,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       timeline: '时间线',
       menu: '菜单',
       close: '关闭',
+      language: '语言',
     },
     hero: {
       title: '一只黑猫。\n无数种表情。',

@@ -55,6 +55,7 @@ describe('Navigation', () => {
 
     expect(within(nav).getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'false')
     expect(within(nav).getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(nav).getByRole('group', { name: 'Language' })).toBeVisible()
   })
 
   it('switches desktop navigation immediately and persists the locale', () => {
@@ -108,6 +109,7 @@ describe('Navigation', () => {
     expect(root).not.toHaveAttribute('aria-hidden')
     expect(root.inert).toBe(false)
     expect(media.mediaQuery.removeEventListener).toHaveBeenCalledWith('change', expect.any(Function))
+    expect(screen.getByRole('link', { name: 'Nanami Home' })).toHaveFocus()
 
     fireEvent.click(trigger)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

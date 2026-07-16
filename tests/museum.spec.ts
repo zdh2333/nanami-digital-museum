@@ -108,7 +108,7 @@ test.describe('desktop museum', () => {
       .poll(() => page.locator('#field-notes').evaluate((node) => Math.round(node.getBoundingClientRect().top)))
       .toBeLessThanOrEqual(100)
 
-    await page.getByRole('link', { name: 'About' }).focus()
+    await page.getByRole('link', { name: 'Profile' }).focus()
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/#presence$/)
     await expect(page.locator('#presence')).toBeInViewport()
@@ -227,6 +227,24 @@ test.describe('mobile safety', () => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile-only coverage')
   })
 
+  test('mobile menu navigates to the archive and closes', async ({ page }) => {
+    await page.goto('/')
+    const menu = page.getByRole('button', { name: 'Menu' })
+
+    await menu.click()
+    const dialog = page.getByRole('dialog', { name: 'Museum navigation' })
+    await expect(dialog).toBeVisible()
+
+    const archive = dialog.getByRole('link', { name: 'Archive' })
+    await archive.focus()
+    await page.keyboard.press('Enter')
+
+    await expect(dialog).toBeHidden()
+    await expect(menu).toHaveAttribute('aria-expanded', 'false')
+    await expect(page).toHaveURL(/#mood-archive$/)
+    await expect(page.locator('#mood-archive')).toBeInViewport()
+  })
+
   test('loads, scrolls, navigates, filters, and avoids legacy 3D', async ({ page }, testInfo) => {
     const modelRequests: string[] = []
     page.on('request', (request) => {
@@ -254,8 +272,6 @@ test.describe('mobile safety', () => {
     await expect(page.locator('.presence__copy')).toHaveCSS('opacity', '1')
     await expect(page.locator('.presence__media')).toHaveCSS('opacity', '1')
 
-    await page.getByRole('link', { name: 'Explore' }).click()
-    await expect(page.locator('#mood-archive')).toBeInViewport()
     await page.getByRole('button', { name: 'Memes', exact: true }).click()
     await expect(page.locator('.archive-card')).toHaveCount(6)
 

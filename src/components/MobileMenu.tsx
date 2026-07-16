@@ -11,6 +11,7 @@ type MobileMenuProps = {
   open: boolean
   onClose: () => void
   triggerRef: RefObject<HTMLButtonElement | null>
+  getReturnFocusTarget?: () => HTMLElement | null
 }
 
 const focusableSelector = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
@@ -20,6 +21,7 @@ export function MobileMenu({
   open,
   onClose,
   triggerRef,
+  getReturnFocusTarget,
 }: MobileMenuProps) {
   const { locale, setLocale, copy } = useLocale()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -31,6 +33,15 @@ export function MobileMenu({
   useEffect(() => {
     if (!open) return
     closeRef.current?.focus()
+
+    return () => {
+      const target = getReturnFocusTarget?.() ?? triggerRef.current
+      if (target?.isConnected) target.focus()
+    }
+  }, [getReturnFocusTarget, open, triggerRef])
+
+  useEffect(() => {
+    if (!open) return
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -56,11 +67,8 @@ export function MobileMenu({
     }
 
     document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      if (triggerRef.current?.isConnected) triggerRef.current.focus()
-    }
-  }, [onClose, open, triggerRef])
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose, open])
 
   if (!open || typeof document === 'undefined') return null
 
@@ -89,7 +97,8 @@ export function MobileMenu({
       </nav>
       <div
         className="mobile-menu__languages"
-        aria-label={locale === 'zh-CN' ? '语言' : 'Language'}
+        role="group"
+        aria-label={copy.nav.language}
       >
         <button
           type="button"

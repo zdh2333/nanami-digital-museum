@@ -82,11 +82,15 @@ describe('MobileMenu', () => {
   it('switches language while remaining open', () => {
     renderHarness()
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
-    fireEvent.click(screen.getByRole('button', { name: '中文' }))
+    const chinese = screen.getByRole('button', { name: '中文' })
+    chinese.focus()
+    fireEvent.click(chinese)
 
     expect(screen.getByRole('dialog', { name: '博物馆导航' })).toBeVisible()
     expect(screen.getByRole('button', { name: '关闭' })).toBeVisible()
     expect(screen.getByRole('link', { name: '首页' })).toBeVisible()
+    expect(screen.getByRole('group', { name: '语言' })).toBeVisible()
+    expect(chinese).toHaveFocus()
     expect(localStorage.getItem('nanami-locale')).toBe('zh-CN')
   })
 
