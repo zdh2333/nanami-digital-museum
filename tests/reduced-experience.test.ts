@@ -14,28 +14,21 @@ afterEach(() => {
 
 describe('shouldUseStaticExperience', () => {
   it.each([
-    { reducedMotion: true, hasWebGl: true, expected: true },
-    { reducedMotion: false, hasWebGl: false, expected: true },
-    { reducedMotion: false, hasWebGl: true, expected: false },
+    { reducedMotion: true, expected: true },
+    { reducedMotion: false, expected: false },
   ])(
-    'returns $expected when reduced motion is $reducedMotion and WebGL support is $hasWebGl',
-    ({ reducedMotion, hasWebGl, expected }) => {
-      expect(shouldUseStaticExperience(reducedMotion, hasWebGl)).toBe(expected)
+    'returns $expected when reduced motion is $reducedMotion',
+    ({ reducedMotion, expected }) => {
+      expect(shouldUseStaticExperience(reducedMotion)).toBe(expected)
     },
   )
 })
 
 describe('useReducedExperience', () => {
-  it('tracks reduced-motion changes after a single WebGL probe', async () => {
+  it('tracks reduced-motion changes without probing obsolete WebGL support', async () => {
     let prefersReducedMotion = false
     const changeListeners: Array<() => void> = []
     const removeEventListener = vi.fn()
-    const loseContext = vi.fn()
-    const context = {
-      getExtension: vi.fn(() => ({ loseContext })),
-    }
-
-    vi.stubGlobal('WebGLRenderingContext', class {})
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({
@@ -48,9 +41,7 @@ describe('useReducedExperience', () => {
         removeEventListener,
       })),
     )
-    const getContext = vi
-      .spyOn(HTMLCanvasElement.prototype, 'getContext')
-      .mockReturnValue(context as unknown as WebGLRenderingContext)
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
     const { useReducedExperience } = await import(
       '../src/hooks/useReducedExperience'
     )
@@ -60,8 +51,7 @@ describe('useReducedExperience', () => {
       useReducedExperience(),
     ])
     expect(result.current).toEqual([false, false])
-    expect(getContext).toHaveBeenCalledTimes(1)
-    expect(loseContext).toHaveBeenCalledTimes(1)
+    expect(getContext).not.toHaveBeenCalled()
 
     prefersReducedMotion = true
     act(() => changeListeners.forEach((listener) => listener()))
@@ -71,8 +61,7 @@ describe('useReducedExperience', () => {
     expect(removeEventListener).toHaveBeenCalledTimes(2)
   })
 
-  it('fails safely to the static experience when probing WebGL throws', async () => {
-    vi.stubGlobal('WebGLRenderingContext', class {})
+  it('keeps animation enabled when WebGL is unavailable', async () => {
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({
@@ -81,7 +70,7 @@ describe('useReducedExperience', () => {
         removeEventListener: vi.fn(),
       })),
     )
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
       throw new Error('GPU unavailable')
     })
     const { useReducedExperience } = await import(
@@ -90,7 +79,8 @@ describe('useReducedExperience', () => {
 
     const { result } = renderHook(() => useReducedExperience())
 
-    expect(result.current).toBe(true)
+    expect(result.current).toBe(false)
+    expect(getContext).not.toHaveBeenCalled()
   })
 
   it('uses and cleans up legacy MediaQueryList listeners', async () => {
@@ -98,7 +88,6 @@ describe('useReducedExperience', () => {
     let changeListener: (() => void) | undefined
     const removeListener = vi.fn()
 
-    vi.stubGlobal('WebGLRenderingContext', class {})
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({
@@ -111,9 +100,6 @@ describe('useReducedExperience', () => {
         removeListener,
       })),
     )
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-      getExtension: vi.fn(() => null),
-    } as unknown as WebGLRenderingContext)
     const { useReducedExperience } = await import(
       '../src/hooks/useReducedExperience'
     )

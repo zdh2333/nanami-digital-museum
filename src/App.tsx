@@ -22,9 +22,12 @@ export function App() {
         <div className="hero-visual">
           <HeroPortrait />
         </div>
-        <h1 id="museum-title" className="sr-only">
-          ONE BLACK CAT. MANY MOODS.
-        </h1>
+        <div className="hero-mobile-copy">
+          <h1 id="museum-title">ONE BLACK CAT.<br />MANY MOODS.</h1>
+          <p aria-hidden="true">
+            <span>ARCHIVE INDEX:</span> NNM_000001
+          </p>
+        </div>
       </section>
       <Presence staticExperience={staticExperience} />
       <FieldNotes staticExperience={staticExperience} />

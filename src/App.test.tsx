@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { App } from './App'
@@ -30,6 +30,24 @@ describe('Nanami Cat museum shell', () => {
     expect(portrait).toHaveAttribute('fetchpriority', 'high')
     expect(screen.queryByTestId('legacy-3d-hero')).not.toBeInTheDocument()
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
+  })
+
+  it('shows a reviewed Nanami room photograph in the presence chapter', () => {
+    render(<App />)
+
+    const presence = document.querySelector('#presence')
+    expect(presence).not.toBeNull()
+    const roomPortrait = within(presence as HTMLElement).getByAltText(
+      'Nanami standing at the edge of a bed and looking directly at the camera.',
+    )
+    expect(roomPortrait).toHaveAttribute(
+      'src',
+      '/archive/photos/nanami-photo-002-640.webp',
+    )
+    expect(roomPortrait).toHaveAttribute(
+      'srcset',
+      expect.stringContaining('nanami-photo-002-1600.webp'),
+    )
   })
 
   it('presents the six museum sections in the approved narrative order', () => {

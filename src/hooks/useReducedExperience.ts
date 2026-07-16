@@ -1,49 +1,7 @@
 import { useEffect, useState } from 'react'
 
-export function shouldUseStaticExperience(
-  prefersReducedMotion: boolean,
-  hasWebGl: boolean,
-) {
-  return prefersReducedMotion || !hasWebGl
-}
-
-type WebGlContext = WebGLRenderingContext | WebGL2RenderingContext
-
-let cachedWebGlSupport: boolean | undefined
-
-function releaseProbeContext(context: WebGlContext) {
-  try {
-    context.getExtension('WEBGL_lose_context')?.loseContext()
-  } catch {
-    // Context release is best-effort; capability detection remains valid.
-  }
-}
-
-function probeWebGl() {
-  if (cachedWebGlSupport !== undefined) return cachedWebGlSupport
-
-  if (
-    typeof document === 'undefined' ||
-    (typeof WebGLRenderingContext === 'undefined' &&
-      typeof WebGL2RenderingContext === 'undefined')
-  ) {
-    cachedWebGlSupport = false
-    return cachedWebGlSupport
-  }
-
-  try {
-    const canvas = document.createElement('canvas')
-    const context =
-      (canvas.getContext('webgl2') as WebGlContext | null) ??
-      (canvas.getContext('webgl') as WebGlContext | null)
-
-    cachedWebGlSupport = context !== null
-    if (context) releaseProbeContext(context)
-    return cachedWebGlSupport
-  } catch {
-    cachedWebGlSupport = false
-    return cachedWebGlSupport
-  }
+export function shouldUseStaticExperience(prefersReducedMotion: boolean) {
+  return prefersReducedMotion
 }
 
 function readPreference() {
@@ -53,14 +11,13 @@ function readPreference() {
 }
 
 export function useReducedExperience() {
-  const [staticExperience, setStaticExperience] = useState(true)
+  const [staticExperience, setStaticExperience] = useState(readPreference)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    const supported = probeWebGl()
     const update = () => {
       setStaticExperience(
-        shouldUseStaticExperience(mediaQuery?.matches ?? readPreference(), supported),
+        shouldUseStaticExperience(mediaQuery?.matches ?? readPreference()),
       )
     }
 

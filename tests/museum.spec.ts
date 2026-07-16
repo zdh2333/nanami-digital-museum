@@ -234,6 +234,8 @@ test.describe('mobile safety', () => {
     })
     await page.goto('/')
     await waitForImage(page.getByRole('img', { name: heroAlt }))
+    await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
+    await expect(page.locator('.hero-mobile-copy p')).toContainText('NNM_000001')
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true)
@@ -243,6 +245,14 @@ test.describe('mobile safety', () => {
     const startY = await page.evaluate(() => window.scrollY)
     await page.mouse.wheel(0, 700)
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(startY)
+
+    await page.locator('#presence').scrollIntoViewIfNeeded()
+    const roomPortrait = page.locator('#presence').getByRole('img', {
+      name: 'Nanami standing at the edge of a bed and looking directly at the camera.',
+    })
+    await waitForImage(roomPortrait)
+    await expect(page.locator('.presence__copy')).toHaveCSS('opacity', '1')
+    await expect(page.locator('.presence__media')).toHaveCSS('opacity', '1')
 
     await page.getByRole('link', { name: 'Explore' }).click()
     await expect(page.locator('#mood-archive')).toBeInViewport()
