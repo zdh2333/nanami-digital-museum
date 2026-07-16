@@ -13,7 +13,10 @@ describe('static sharing metadata', () => {
   it('contains one exact English fallback and canonical sharing tag set', () => {
     expect(occurrences('<title>Nanami Cat — A Living Archive</title>')).toBe(1)
     expect(occurrences('name="description"')).toBe(1)
-    expect(html).toContain('content="Nanami is a living male black cat born in Utsunomiya, Tochigi, Japan. Explore his living digital archive."')
+    const description = 'The living digital archive of Nanami, a black cat born in Utsunomiya, Tochigi.'
+    expect(html).toContain(`name="description"\n      content="${description}"`)
+    expect(html).toContain(`<meta property="og:description" content="${description}" />`)
+    expect(html).toContain(`<meta name="twitter:description" content="${description}" />`)
     expect(occurrences('rel="canonical"')).toBe(1)
     expect(html).toContain('<link rel="canonical" href="https://nanamicat.com/" />')
     expect(html).toContain('<link rel="icon" type="image/png" href="/favicon.png" />')

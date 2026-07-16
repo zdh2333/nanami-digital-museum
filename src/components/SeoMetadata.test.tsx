@@ -38,7 +38,13 @@ describe('SeoMetadata', () => {
 
     expect(document.title).toBe('Nanami Cat — A Living Archive')
     expect(meta('meta[name="description"]')?.content).toBe(
-      'Nanami is a living male black cat born in Utsunomiya, Tochigi, Japan. Explore his living digital archive.',
+      'The living digital archive of Nanami, a black cat born in Utsunomiya, Tochigi.',
+    )
+    expect(meta('meta[property="og:description"]')?.content).toBe(
+      'The living digital archive of Nanami, a black cat born in Utsunomiya, Tochigi.',
+    )
+    expect(meta('meta[name="twitter:description"]')?.content).toBe(
+      'The living digital archive of Nanami, a black cat born in Utsunomiya, Tochigi.',
     )
     expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
     expect(meta('meta[property="og:locale"]')?.content).toBe('en_US')
@@ -62,7 +68,15 @@ describe('SeoMetadata', () => {
     fireEvent.click(screen.getByRole('button', { name: '中文' }))
 
     expect(document.title).toBe('Nanami Cat — 生活数字档案')
-    expect(meta('meta[name="description"]')?.content).toContain('生活数字档案')
+    expect(meta('meta[name="description"]')?.content).toBe(
+      '黑猫 Nanami 的生活数字档案。他出生于日本栃木县宇都宫市。',
+    )
+    expect(meta('meta[property="og:description"]')?.content).toBe(
+      '黑猫 Nanami 的生活数字档案。他出生于日本栃木县宇都宫市。',
+    )
+    expect(meta('meta[name="twitter:description"]')?.content).toBe(
+      '黑猫 Nanami 的生活数字档案。他出生于日本栃木县宇都宫市。',
+    )
     expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
     expect(meta('meta[property="og:locale"]')?.content).toBe('zh_CN')
     expect(meta('meta[name="twitter:title"]')?.content).toBe(document.title)
@@ -87,6 +101,7 @@ describe('SeoMetadata', () => {
     expect(website.about).toEqual({ '@id': 'https://nanamicat.com/#nanami' })
     expect(nanami).toMatchObject({
       '@type': 'Thing',
+      additionalType: 'Cat',
       name: nanamiProfile.name,
       gender: nanamiProfile.sex,
       birthDate: nanamiProfile.birthDate,

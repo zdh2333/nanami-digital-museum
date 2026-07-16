@@ -36,7 +36,7 @@ async function main() {
     .toFile(faviconOutput)
 
   await sharp(socialSource, { failOn: 'error' })
-    .resize(1200, 630, { fit: 'cover', position: sharp.strategy.attention })
+    .resize(1200, 630, { fit: 'cover', position: 'centre' })
     .webp({ quality: 88, effort: 6 })
     .toFile(socialOutput)
 

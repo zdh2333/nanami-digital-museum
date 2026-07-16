@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -10,6 +11,10 @@ import sharp from 'sharp'
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const script = join(projectRoot, 'scripts', 'build-share-assets.mjs')
 const temporaryDirectories = []
+
+function sha256(buffer) {
+  return createHash('sha256').update(buffer).digest('hex')
+}
 
 async function outputRoot() {
   const directory = await mkdtemp(join(tmpdir(), 'nanami-share-assets-'))
@@ -59,5 +64,15 @@ describe('share asset builder', () => {
       expect(metadata.iptc).toBeUndefined()
       expect(metadata.xmp).toBeUndefined()
     }
+
+    const expectedCenteredCard = await sharp(
+      join(projectRoot, 'public/hero/nanami-cinematic-hero.webp'),
+      { failOn: 'error' },
+    )
+      .resize(1200, 630, { fit: 'cover', position: 'centre' })
+      .webp({ quality: 88, effort: 6 })
+      .toBuffer()
+    expect(sha256(await readFile(join(firstRoot, 'social/nanami-social-card.webp'))))
+      .toBe(sha256(expectedCenteredCard))
   })
 })

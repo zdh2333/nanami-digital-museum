@@ -47,6 +47,7 @@ function structuredData() {
       },
       {
         '@type': 'Thing',
+        additionalType: 'Cat',
         '@id': subjectId,
         name: nanamiProfile.name,
         gender: nanamiProfile.sex,
