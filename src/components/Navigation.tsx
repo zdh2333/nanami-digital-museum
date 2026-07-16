@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '../i18n/LocaleProvider'
 import { MobileMenu } from './MobileMenu'
@@ -12,6 +12,24 @@ export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const navigationLabel = locale === 'zh-CN' ? '博物馆导航' : 'Museum navigation'
+
+  useEffect(() => {
+    if (!menuOpen || typeof window.matchMedia !== 'function') return
+
+    const desktopQuery = window.matchMedia('(min-width: 768px)')
+    const closeOnDesktop = () => {
+      if (desktopQuery.matches) setMenuOpen(false)
+    }
+
+    closeOnDesktop()
+    if (typeof desktopQuery.addEventListener === 'function') {
+      desktopQuery.addEventListener('change', closeOnDesktop)
+      return () => desktopQuery.removeEventListener('change', closeOnDesktop)
+    }
+
+    desktopQuery.addListener(closeOnDesktop)
+    return () => desktopQuery.removeListener(closeOnDesktop)
+  }, [menuOpen])
 
   return (
     <header className="museum-header">
