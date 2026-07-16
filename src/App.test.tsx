@@ -82,7 +82,9 @@ describe('Nanami Cat museum shell', () => {
       expect(screen.getByText(identifier)).toBeVisible()
     })
     expect(screen.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeVisible()
-    expect(screen.getByText('Three collections. Always growing.')).toBeVisible()
+    expect(
+      screen.getByText('Explore Nanami’s living archive.'),
+    ).toBeVisible()
     ;['Photos', 'Memes', 'Portraits'].forEach((label) => {
       expect(screen.getAllByText(label)[0]).toBeVisible()
     })
@@ -91,5 +93,51 @@ describe('Nanami Cat museum shell', () => {
     expect(container.textContent).not.toMatch(
       /memorial|in memory|remembering|rest in peace/i,
     )
+  })
+
+  it('fills every field note with a reviewed Nanami photograph', () => {
+    render(<App />)
+    const section = document.querySelector('#field-notes')
+    expect(section).not.toBeNull()
+
+    const notes = within(section as HTMLElement).getAllByRole('group')
+    expect(notes).toHaveLength(4)
+    notes.forEach((note) => {
+      expect(within(note).getByRole('img')).toHaveAttribute(
+        'src',
+        expect.stringMatching(/nanami-photo-\d{3}-640\.webp/),
+      )
+      expect(within(note).getByText(/Observed:/)).toBeVisible()
+    })
+  })
+
+  it('turns the living archive collections into clear, counted links', () => {
+    render(<App />)
+    const section = document.querySelector('#living-archive')
+    expect(section).not.toBeNull()
+
+    ;['View 13 photos', 'View 6 memes', 'View 4 close portraits'].forEach(
+      (name) => {
+        expect(
+          within(section as HTMLElement).getByRole('link', { name }),
+        ).toHaveAttribute('href', '#mood-archive')
+      },
+    )
+  })
+
+  it('uses a real 2D Nanami face instead of synthetic closing eyes', () => {
+    const { container } = render(<App />)
+    const closing = container.querySelector('#closing')
+    expect(closing).not.toBeNull()
+
+    expect(
+      within(closing as HTMLElement).getByAltText(
+        'Close portrait of Nanami looking directly into the camera.',
+      ),
+    ).toHaveAttribute(
+      'src',
+      '/archive/photos/nanami-photo-014-1600.webp',
+    )
+    expect(closing?.querySelector('.closing__gaze')).not.toBeInTheDocument()
   })
 })

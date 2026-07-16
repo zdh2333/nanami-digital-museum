@@ -86,7 +86,7 @@ test.describe('desktop museum', () => {
     await expect(page.getByRole('heading', { name: 'She runs the house.' })).toBeAttached()
     await expect(page.getByText('RIGHT-ANGLE TAIL', { exact: true })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeAttached()
-    await expect(page.getByRole('heading', { name: 'Three collections. Always growing.' })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'Explore Nanami’s living archive.' })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'Nanami is probably watching you.' })).toBeAttached()
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
