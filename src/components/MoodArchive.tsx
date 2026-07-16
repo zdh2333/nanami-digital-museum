@@ -63,6 +63,12 @@ function ArchiveCard({
         {item.captureDate ? (
           <time dateTime={item.captureDate}>{formatArchiveDate(item.captureDate, locale)}</time>
         ) : <span className="archive-card__date-missing">{archiveCopy.missingDate}</span>}
+        {item.location ? (
+          <span className="archive-card__location">
+            <span className="museum-label text-ink">{archiveCopy.location}</span>
+            <span>{item.location[locale]}</span>
+          </span>
+        ) : null}
       </span>
     </button>
   )

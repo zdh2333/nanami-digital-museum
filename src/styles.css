@@ -583,6 +583,15 @@ a {
   font-size: 0.6875rem;
 }
 
+.archive-card__location {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: baseline;
+  color: var(--color-bone-muted);
+  font-size: 0.75rem;
+}
+
 .archive-viewer__metadata {
   display: grid;
   gap: 1rem;

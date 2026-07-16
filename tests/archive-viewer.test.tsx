@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { useState } from 'react'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { validateArchive } from '../src/archive/validate'
 import { ArchiveViewer } from '../src/components/ArchiveViewer'
@@ -47,6 +47,11 @@ function Providers({ children }: { children: React.ReactNode }) {
 function renderArchive() {
   return render(<MoodArchive items={items} staticExperience />, { wrapper: Providers })
 }
+
+beforeEach(() => {
+  localStorage.clear()
+  window.history.replaceState(null, '', '/')
+})
 
 afterEach(() => {
   localStorage.clear()
@@ -104,6 +109,27 @@ describe('Mood archive viewer', () => {
     expect(screen.getByRole('button', { name: 'Portraits' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('restores pushed filters through native browser back and forward navigation', async () => {
+    window.history.replaceState(null, '', '/?ref=native-history')
+    renderArchive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Photos' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Memes' }))
+    expect(window.location.search).toBe('?ref=native-history&collection=memes')
+
+    act(() => window.history.back())
+    await waitFor(() => {
+      expect(window.location.search).toBe('?ref=native-history&collection=photos')
+      expect(screen.getByRole('button', { name: 'Photos' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    act(() => window.history.forward())
+    await waitFor(() => {
+      expect(window.location.search).toBe('?ref=native-history&collection=memes')
+      expect(screen.getByRole('button', { name: 'Memes' })).toHaveAttribute('aria-pressed', 'true')
+    })
+  })
+
   it('falls back to all for invalid query values', () => {
     window.history.replaceState(null, '', '/?collection=portrait')
     renderArchive()
@@ -123,10 +149,15 @@ describe('Mood archive viewer', () => {
       </LocaleProvider>,
     )
 
-    expect(screen.getByText('Photo')).toBeVisible()
-    expect(screen.getByText('July 1, 2026')).toBeVisible()
-    expect(screen.getByText('Date not recorded')).toBeVisible()
-    expect(screen.queryByText('Tokyo')).not.toBeInTheDocument()
+    const locatedCard = screen.getByRole('button', { name: /view window watch/i })
+    const unlocatedCard = screen.getByRole('button', { name: /view no closed doors/i })
+    expect(within(locatedCard).getByText('Photo')).toBeVisible()
+    expect(within(locatedCard).getByText('July 1, 2026')).toBeVisible()
+    expect(within(locatedCard).getByText('Location')).toBeVisible()
+    expect(within(locatedCard).getByText('Tokyo')).toBeVisible()
+    expect(within(unlocatedCard).getByText('Date not recorded')).toBeVisible()
+    expect(within(unlocatedCard).queryByText('Location')).not.toBeInTheDocument()
+    expect(within(unlocatedCard).queryByText('Tokyo')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
     const dialog = screen.getByRole('dialog', { name: 'Window watch.' })
@@ -137,6 +168,8 @@ describe('Mood archive viewer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '中文' }))
     const localizedDialog = screen.getByRole('dialog', { name: '窗边巡视。' })
+    expect(within(locatedCard).getByText('地点')).toBeVisible()
+    expect(within(locatedCard).getByText('东京')).toBeVisible()
     expect(within(localizedDialog).getByAltText('七海在窗边看街道。')).toBeVisible()
     expect(within(localizedDialog).getByText('2026年7月1日')).toBeVisible()
     expect(within(localizedDialog).getByText('东京')).toBeVisible()
