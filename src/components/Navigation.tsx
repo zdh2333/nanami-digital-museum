@@ -1,43 +1,71 @@
-const navigationItems = [
-  { label: 'About', href: '#presence' },
-  { label: 'Field notes', href: '#field-notes' },
-  { label: 'Photos', href: '#mood-archive' },
-  { label: 'Memes', href: '#mood-archive' },
-]
+import { useRef, useState } from 'react'
 
-const linkClassName =
-  'inline-flex min-h-11 items-center px-4 font-mono text-sm text-bone-muted transition-colors hover:text-bone focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink'
+import { useLocale } from '../i18n/LocaleProvider'
+import { MobileMenu } from './MobileMenu'
+import { navigationItems } from './navigationModel'
+
+const desktopItems = navigationItems.slice(1)
+const menuId = 'mobile-museum-menu'
 
 export function Navigation() {
+  const { locale, setLocale, copy } = useLocale()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const navigationLabel = locale === 'zh-CN' ? '博物馆导航' : 'Museum navigation'
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-obsidian">
-      <nav
-        aria-label="Museum navigation"
-        className="mx-auto flex min-h-20 max-w-[104.5rem] items-center gap-3 px-4 sm:px-11"
-      >
+    <header className="museum-header">
+      <nav aria-label={navigationLabel} className="museum-navigation">
         <a
           href="#hero"
-          aria-label="Nanami home"
-          className={`${linkClassName} mr-auto px-0 text-xl text-bone`}
+          aria-label={`Nanami ${copy.nav.home}`}
+          aria-current="page"
+          className="museum-navigation__brand"
         >
           Nanami
         </a>
 
-        <div className="hidden items-center md:flex">
-          {navigationItems.map((item) => (
-            <a key={item.label} href={item.href} className={linkClassName}>
-              {item.label}
-            </a>
+        <div className="museum-navigation__desktop">
+          {desktopItems.map(({ key, href }) => (
+            <a key={key} href={href}>{copy.nav[key]}</a>
           ))}
+          <div
+            className="museum-navigation__languages"
+            aria-label={locale === 'zh-CN' ? '语言' : 'Language'}
+          >
+            <button
+              type="button"
+              aria-label="中文"
+              aria-pressed={locale === 'zh-CN'}
+              onClick={() => setLocale('zh-CN')}
+            >中</button>
+            <span aria-hidden="true">/</span>
+            <button
+              type="button"
+              aria-label="English"
+              aria-pressed={locale === 'en'}
+              onClick={() => setLocale('en')}
+            >EN</button>
+          </div>
         </div>
 
-        <a
-          href="#mood-archive"
-          className={linkClassName}
+        <button
+          ref={menuTriggerRef}
+          className="museum-navigation__menu-trigger"
+          type="button"
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          onClick={() => setMenuOpen(true)}
         >
-          Explore
-        </a>
+          {copy.nav.menu}
+        </button>
       </nav>
+      <MobileMenu
+        id={menuId}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        triggerRef={menuTriggerRef}
+      />
     </header>
   )
 }

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { formatArchiveDate } from '../archive/date'
 import type { ArchiveItem } from '../archive/types'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
+import { useModalBackgroundLock } from '../hooks/useModalBackgroundLock'
 import { useLocale } from '../i18n/LocaleProvider'
 
 type ArchiveViewerProps = {
@@ -18,10 +19,6 @@ type ArchiveViewerProps = {
 const focusableSelector =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-let backgroundLockCount = 0
-let lockedRoot: HTMLElement | null = null
-let savedRootInert = false
-let savedRootAriaHidden: string | null = null
 let modalStack: string[] = []
 const modalStackListeners = new Set<() => void>()
 
@@ -53,34 +50,6 @@ function useIsTopmostModal(token: string, open: boolean) {
   }, [open, token])
 
   return isTopmost
-}
-
-function useModalBackgroundLock(locked: boolean) {
-  useEffect(() => {
-    if (!locked || typeof document === 'undefined') return
-
-    const root = document.getElementById('root')
-    if (!root) return
-
-    if (backgroundLockCount === 0) {
-      lockedRoot = root
-      savedRootInert = Boolean(root.inert)
-      savedRootAriaHidden = root.getAttribute('aria-hidden')
-      root.inert = true
-      root.setAttribute('aria-hidden', 'true')
-    }
-    backgroundLockCount += 1
-
-    return () => {
-      backgroundLockCount = Math.max(0, backgroundLockCount - 1)
-      if (backgroundLockCount !== 0 || !lockedRoot) return
-
-      lockedRoot.inert = savedRootInert
-      if (savedRootAriaHidden === null) lockedRoot.removeAttribute('aria-hidden')
-      else lockedRoot.setAttribute('aria-hidden', savedRootAriaHidden)
-      lockedRoot = null
-    }
-  }, [locked])
 }
 
 export function ArchiveViewer({

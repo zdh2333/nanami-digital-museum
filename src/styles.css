@@ -125,6 +125,198 @@ a {
   scroll-margin-top: 5.5rem;
 }
 
+.museum-header {
+  position: fixed;
+  z-index: 50;
+  inset: 0 0 auto;
+  height: 5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  background: var(--color-obsidian);
+}
+
+.museum-navigation {
+  display: flex;
+  align-items: center;
+  width: min(100%, 104.5rem);
+  min-height: 5rem;
+  padding-inline: 1rem;
+  margin-inline: auto;
+}
+
+.museum-navigation a,
+.museum-navigation button,
+.mobile-menu a,
+.mobile-menu button {
+  color: var(--color-bone-muted);
+  font-family: var(--font-mono);
+}
+
+.museum-navigation a:focus-visible,
+.museum-navigation button:focus-visible,
+.mobile-menu a:focus-visible,
+.mobile-menu button:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
+.museum-navigation__brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-right: auto;
+  color: var(--color-bone) !important;
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.museum-navigation__brand[aria-current='page']::after {
+  width: 0.35rem;
+  height: 0.35rem;
+  margin: 0.1rem 0 0 0.65rem;
+  background: var(--color-ink);
+  content: '';
+}
+
+.museum-navigation__desktop {
+  display: none;
+}
+
+.museum-navigation__menu-trigger {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mobile-menu {
+  position: fixed;
+  z-index: 45;
+  inset: 5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  min-height: calc(100dvh - 5rem);
+  padding: 1.25rem 1rem max(1.5rem, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--color-obsidian);
+}
+
+.mobile-menu__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-ink-muted);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+}
+
+.mobile-menu button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.35rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobile-menu nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: 1rem;
+}
+
+.mobile-menu nav a {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: center;
+  min-height: 3.75rem;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  color: var(--color-bone);
+  font-size: clamp(1.35rem, 7vw, 2.25rem);
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.mobile-menu nav a span {
+  color: var(--color-ink);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+}
+
+.mobile-menu__languages,
+.museum-navigation__languages {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-menu__languages {
+  min-height: 2.75rem;
+  border-top: 1px solid var(--color-ink-muted);
+}
+
+.mobile-menu__languages button[aria-pressed='true'],
+.museum-navigation__languages button[aria-pressed='true'] {
+  color: var(--color-bone);
+}
+
+@media (min-width: 48rem) {
+  .museum-navigation {
+    gap: 0.75rem;
+    padding-inline: 2.75rem;
+  }
+
+  .museum-navigation__desktop {
+    display: flex;
+    align-items: center;
+  }
+
+  .museum-navigation__desktop > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: 0.75rem;
+    font-size: 0.75rem;
+    text-decoration: none;
+  }
+
+  .museum-navigation__desktop > a:hover {
+    color: var(--color-bone);
+  }
+
+  .museum-navigation__languages {
+    padding-left: 0.6rem;
+    margin-left: 0.35rem;
+    border-left: 1px solid var(--color-ink-muted);
+  }
+
+  .museum-navigation__languages button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.6875rem;
+  }
+
+  .museum-navigation__menu-trigger {
+    display: none;
+  }
+}
+
 .hero-visual .hero-poster--hidden {
   opacity: 0;
 }
