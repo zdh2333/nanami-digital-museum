@@ -30,6 +30,11 @@ function ArchiveCard({
   archiveCopy: MuseumCopy['archive']
 }) {
   const [imageFailed, setImageFailed] = useState(false)
+  const viewId = `archive-card-${item.id}-view`
+  const captionId = `archive-card-${item.id}-caption`
+  const typeId = `archive-card-${item.id}-type`
+  const dateId = `archive-card-${item.id}-date`
+  const locationId = `archive-card-${item.id}-location`
 
   useEffect(() => setImageFailed(false), [item.src640, item.src1600])
 
@@ -37,9 +42,11 @@ function ArchiveCard({
     <button
       className="archive-card"
       type="button"
-      aria-label={`${archiveCopy.view} ${item.caption[locale]}`}
+      aria-labelledby={`${viewId} ${captionId}`}
+      aria-describedby={`${typeId} ${dateId}${item.location ? ` ${locationId}` : ''}`}
       onClick={(event) => onOpen(event.currentTarget)}
     >
+      <span id={viewId} className="visually-hidden">{archiveCopy.view}</span>
       <span className="archive-card__image">
         {imageFailed ? (
           <span className="archive-image-placeholder" role="status" aria-label={archiveCopy.imageUnavailable}>
@@ -58,13 +65,16 @@ function ArchiveCard({
         )}
       </span>
       <span className="archive-card__meta">
-        <span className="museum-label text-ink">{archiveCopy[item.type]}</span>
-        <span>{item.caption[locale]}</span>
+        <span id={typeId} className="museum-label text-ink">{archiveCopy[item.type]}</span>
+        <span id={captionId}>{item.caption[locale]}</span>
         {item.captureDate ? (
-          <time dateTime={item.captureDate}>{formatArchiveDate(item.captureDate, locale)}</time>
-        ) : <span className="archive-card__date-missing">{archiveCopy.missingDate}</span>}
+          <span id={dateId} className="archive-card__date">
+            <span className="visually-hidden">{archiveCopy.date}</span>
+            <time dateTime={item.captureDate}>{formatArchiveDate(item.captureDate, locale)}</time>
+          </span>
+        ) : <span id={dateId} className="archive-card__date-missing">{archiveCopy.missingDate}</span>}
         {item.location ? (
-          <span className="archive-card__location">
+          <span id={locationId} className="archive-card__location">
             <span className="museum-label text-ink">{archiveCopy.location}</span>
             <span>{item.location[locale]}</span>
           </span>
@@ -126,8 +136,9 @@ export function MoodArchive({ staticExperience, items = archiveItems }: MoodArch
                 type="button"
                 aria-pressed={filter === value}
                 onClick={() => {
-                  setFilter(value)
                   closeViewer()
+                  if (value === filter) return
+                  setFilter(value)
                   if (typeof window !== 'undefined') {
                     window.history.pushState(null, '', collectionUrl(value, window.location.search))
                   }

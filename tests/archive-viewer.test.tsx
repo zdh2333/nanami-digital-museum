@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { useState } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { validateArchive } from '../src/archive/validate'
 import { ArchiveViewer } from '../src/components/ArchiveViewer'
@@ -54,6 +54,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   localStorage.clear()
   window.history.replaceState(null, '', '/')
 })
@@ -90,6 +91,51 @@ describe('Mood archive viewer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Portraits' }))
     expect(screen.getByRole('button', { name: /view window watch/i })).toBeVisible()
     expect(screen.queryByRole('button', { name: /view no closed doors/i })).not.toBeInTheDocument()
+  })
+
+  it('exposes localized card names and complete metadata descriptions', () => {
+    function LocaleControls() {
+      const { setLocale } = useLocale()
+      return <button onClick={() => setLocale('zh-CN')}>中文</button>
+    }
+    render(
+      <LocaleProvider>
+        <LocaleControls />
+        <MoodArchive items={items} staticExperience />
+      </LocaleProvider>,
+    )
+
+    const locatedCard = screen.getByRole('button', { name: /view window watch/i })
+    const unlocatedCard = screen.getByRole('button', { name: /view no closed doors/i })
+    expect(locatedCard).toHaveAccessibleName('View Window watch.')
+    expect(locatedCard).toHaveAccessibleDescription(
+      'Photo Date July 1, 2026 Location Tokyo',
+    )
+    expect(unlocatedCard).toHaveAccessibleName('View No closed doors.')
+    expect(unlocatedCard).toHaveAccessibleDescription('Meme Date not recorded')
+    expect(unlocatedCard).not.toHaveAccessibleDescription(/location|tokyo/i)
+
+    fireEvent.click(screen.getByRole('button', { name: '中文' }))
+    expect(locatedCard).toHaveAccessibleName('查看 窗边巡视。')
+    expect(locatedCard).toHaveAccessibleDescription('照片 日期 2026年7月1日 地点 东京')
+    expect(unlocatedCard).toHaveAccessibleName('查看 不许关门。')
+    expect(unlocatedCard).toHaveAccessibleDescription('表情包 日期未记录')
+    expect(unlocatedCard).not.toHaveAccessibleDescription(/地点|东京/)
+  })
+
+  it('does not push duplicate history entries for the selected filter', () => {
+    const pushState = vi.spyOn(window.history, 'pushState')
+    renderArchive()
+
+    fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(pushState).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Photos' }))
+    expect(pushState).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Photos' }))
+    expect(pushState).toHaveBeenCalledTimes(1)
   })
 
   it('initializes from the query, pushes filter URLs, restores popstate, and closes the viewer', () => {

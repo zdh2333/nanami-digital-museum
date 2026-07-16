@@ -42,6 +42,17 @@ a {
   font: inherit;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 ::selection {
   color: var(--color-bone);
   background: var(--color-ink-muted);
@@ -581,6 +592,10 @@ a {
   color: var(--color-bone-muted);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
+}
+
+.archive-card__date {
+  display: inline-flex;
 }
 
 .archive-card__location {
