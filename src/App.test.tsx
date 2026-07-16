@@ -2,14 +2,19 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { App } from './App'
+import { LocaleProvider } from './i18n/LocaleProvider'
 
 vi.mock('./components/Hero3D', () => ({
   Hero3D: () => <div data-testid="legacy-3d-hero" />,
 }))
 
+function renderApp() {
+  return render(<LocaleProvider><App /></LocaleProvider>)
+}
+
 describe('Nanami Cat museum shell', () => {
   it('introduces Nanami with the primary museum heading', () => {
-    render(<App />)
+    renderApp()
 
     expect(
       screen.getByRole('heading', {
@@ -20,7 +25,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('uses the approved cinematic Nanami hero artwork instead of the legacy 3D hero', () => {
-    const { container } = render(<App />)
+    const { container } = renderApp()
 
     const portrait = screen.getByAltText(
       'Nanami sitting in a dark room and looking directly at the camera.',
@@ -33,7 +38,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('shows a reviewed Nanami room photograph in the presence chapter', () => {
-    render(<App />)
+    renderApp()
 
     const presence = document.querySelector('#presence')
     expect(presence).not.toBeNull()
@@ -51,7 +56,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('presents the six museum sections in the approved narrative order', () => {
-    const { container } = render(<App />)
+    const { container } = renderApp()
     const sections = Array.from(container.querySelectorAll('main > section'))
 
     expect(sections.map((section) => section.id)).toEqual([
@@ -69,7 +74,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('uses the approved living archive copy without mourning language', () => {
-    const { container } = render(<App />)
+    const { container } = renderApp()
 
     expect(screen.getByText('She runs the house.')).toBeVisible()
     expect(screen.getByRole('heading', { name: 'FIELD NOTES' })).toBeVisible()
@@ -81,7 +86,7 @@ describe('Nanami Cat museum shell', () => {
     ].forEach((identifier) => {
       expect(screen.getByText(identifier)).toBeVisible()
     })
-    expect(screen.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Mood Archive' })).toBeVisible()
     expect(
       screen.getByText('Explore Nanami’s living archive.'),
     ).toBeVisible()
@@ -96,7 +101,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('fills every field note with a reviewed Nanami photograph', () => {
-    render(<App />)
+    renderApp()
     const section = document.querySelector('#field-notes')
     expect(section).not.toBeNull()
 
@@ -112,7 +117,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('turns the living archive collections into clear, counted links', () => {
-    render(<App />)
+    renderApp()
     const section = document.querySelector('#living-archive')
     expect(section).not.toBeNull()
 
@@ -126,7 +131,7 @@ describe('Nanami Cat museum shell', () => {
   })
 
   it('uses a real 2D Nanami face instead of synthetic closing eyes', () => {
-    const { container } = render(<App />)
+    const { container } = renderApp()
     const closing = container.querySelector('#closing')
     expect(closing).not.toBeNull()
 

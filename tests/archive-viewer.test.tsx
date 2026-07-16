@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { validateArchive } from '../src/archive/validate'
 import { ArchiveViewer } from '../src/components/ArchiveViewer'
 import { MoodArchive } from '../src/components/MoodArchive'
+import { LocaleProvider, useLocale } from '../src/i18n/LocaleProvider'
 
 const items = validateArchive([
   {
@@ -19,6 +20,7 @@ const items = validateArchive([
     alt: { en: 'Nanami watching the street from a window', 'zh-CN': '七海在窗边看街道。' },
     story: { en: 'A quiet watch.', 'zh-CN': '安静地巡视。' },
     captureDate: '2026-07-01',
+    location: { en: 'Tokyo', 'zh-CN': '东京' },
     faceChecked: true,
     featured: true,
     order: 1,
@@ -38,15 +40,24 @@ const items = validateArchive([
   },
 ])
 
-function renderArchive() {
-  return render(<MoodArchive items={items} staticExperience />)
+function Providers({ children }: { children: React.ReactNode }) {
+  return <LocaleProvider>{children}</LocaleProvider>
 }
+
+function renderArchive() {
+  return render(<MoodArchive items={items} staticExperience />, { wrapper: Providers })
+}
+
+afterEach(() => {
+  localStorage.clear()
+  window.history.replaceState(null, '', '/')
+})
 
 describe('Mood archive viewer', () => {
   it('renders an honest curation state without inactive filters when empty', () => {
-    render(<MoodArchive items={[]} staticExperience />)
+    render(<MoodArchive items={[]} staticExperience />, { wrapper: Providers })
 
-    expect(screen.getByText(/being carefully curated/i)).toBeVisible()
+    expect(screen.getByText('Nanami has not added anything to this collection yet.')).toBeVisible()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
@@ -63,6 +74,77 @@ describe('Mood archive viewer', () => {
     expect(document.body.textContent).not.toMatch(/\b2 photos?\b|\b1 memes?\b/i)
   })
 
+  it('offers all four localized collection filters and portraits are a true subset', () => {
+    renderArchive()
+
+    expect(screen.getAllByRole('button', { pressed: false }).map((button) => button.textContent)).toEqual([
+      'Photos', 'Memes', 'Portraits',
+    ])
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Portraits' }))
+    expect(screen.getByRole('button', { name: /view window watch/i })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /view no closed doors/i })).not.toBeInTheDocument()
+  })
+
+  it('initializes from the query, pushes filter URLs, restores popstate, and closes the viewer', () => {
+    window.history.replaceState(null, '', '/?ref=museum&collection=memes')
+    renderArchive()
+    expect(screen.getByRole('button', { name: 'Memes' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: /view no closed doors/i }))
+    expect(screen.getByRole('dialog')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Photos' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(window.location.search).toBe('?ref=museum&collection=photos')
+    expect(window.location.hash).toBe('#mood-archive')
+
+    window.history.replaceState(null, '', '/?ref=museum&collection=portraits#mood-archive')
+    act(() => window.dispatchEvent(new PopStateEvent('popstate')))
+    expect(screen.getByRole('button', { name: 'Portraits' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('falls back to all for invalid query values', () => {
+    window.history.replaceState(null, '', '/?collection=portrait')
+    renderArchive()
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('button', { name: /^view /i })).toHaveLength(2)
+  })
+
+  it('shows localized card and viewer metadata and updates while open', () => {
+    function LocaleControls() {
+      const { setLocale } = useLocale()
+      return <button onClick={() => setLocale('zh-CN')}>中文</button>
+    }
+    render(
+      <LocaleProvider>
+        <LocaleControls />
+        <MoodArchive items={items} staticExperience />
+      </LocaleProvider>,
+    )
+
+    expect(screen.getByText('Photo')).toBeVisible()
+    expect(screen.getByText('July 1, 2026')).toBeVisible()
+    expect(screen.getByText('Date not recorded')).toBeVisible()
+    expect(screen.queryByText('Tokyo')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
+    const dialog = screen.getByRole('dialog', { name: 'Window watch.' })
+    expect(within(dialog).getByText('Date')).toBeVisible()
+    expect(within(dialog).getByText('Tokyo')).toBeVisible()
+    expect(within(dialog).getByText('Story')).toBeVisible()
+    expect(within(dialog).getByText('A quiet watch.')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: '中文' }))
+    const localizedDialog = screen.getByRole('dialog', { name: '窗边巡视。' })
+    expect(within(localizedDialog).getByAltText('七海在窗边看街道。')).toBeVisible()
+    expect(within(localizedDialog).getByText('2026年7月1日')).toBeVisible()
+    expect(within(localizedDialog).getByText('东京')).toBeVisible()
+    expect(within(localizedDialog).getByText('故事')).toBeVisible()
+    expect(within(localizedDialog).getByText('安静地巡视。')).toBeVisible()
+    expect(screen.getByRole('button', { name: '关闭' })).toBeVisible()
+  })
+
   it('opens a thumbnail in an accessible dialog', () => {
     renderArchive()
 
@@ -73,7 +155,7 @@ describe('Mood archive viewer', () => {
     const dialog = screen.getByRole('dialog', { name: 'Window watch.' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(within(dialog).getByAltText(items[0].alt.en)).toBeVisible()
-    expect(screen.getByRole('button', { name: /close archive viewer/i })).toHaveFocus()
+    expect(screen.getByRole('button', { name: /^close$/i })).toHaveFocus()
   })
 
   it('uses responsive 640px cards and keeps the 1600px asset for the viewer', () => {
@@ -143,8 +225,8 @@ describe('Mood archive viewer', () => {
       screen.getByRole('button', { name: /view window watch/i }),
     )
 
-    const close = screen.getByRole('button', { name: /close archive viewer/i })
-    const next = screen.getByRole('button', { name: /next archive item/i })
+    const close = screen.getByRole('button', { name: /^close$/i })
+    const next = screen.getByRole('button', { name: /^next$/i })
     expect(document.body.style.overflow).toBe('hidden')
 
     close.focus()
@@ -217,7 +299,7 @@ describe('Mood archive viewer', () => {
     const root = document.createElement('div')
     root.id = 'root'
     document.body.append(root)
-    const { unmount } = render(<TwoViewers />, { container: root })
+    const { unmount } = render(<LocaleProvider><TwoViewers /></LocaleProvider>, { container: root })
     const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]')
     const labelIds = Array.from(dialogs, (dialog) =>
       dialog.getAttribute('aria-labelledby'),
@@ -276,7 +358,7 @@ describe('Mood archive viewer', () => {
       within(dialog).getByRole('status', { name: /image unavailable/i }),
     ).toBeVisible()
     expect(
-      within(dialog).getByRole('button', { name: /next archive item/i }),
+      within(dialog).getByRole('button', { name: /^next$/i }),
     ).toBeEnabled()
     expect(dialog.textContent).not.toContain(items[0].id)
     expect(dialog.textContent).not.toContain(items[0].src1600)

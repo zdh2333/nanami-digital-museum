@@ -576,10 +576,36 @@ a {
 }
 
 .archive-card__meta time,
+.archive-card__date-missing,
 .archive-viewer time {
   color: var(--color-bone-muted);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
+}
+
+.archive-viewer__metadata {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+}
+
+.archive-viewer__metadata div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.archive-viewer__metadata dt {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.archive-viewer__metadata dd {
+  margin: 0;
+  color: var(--color-bone-muted);
+  line-height: 1.55;
 }
 
 .archive-card:focus-visible,

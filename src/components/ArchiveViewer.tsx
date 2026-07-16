@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
+import { formatArchiveDate } from '../archive/date'
 import type { ArchiveItem } from '../archive/types'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
+import { useLocale } from '../i18n/LocaleProvider'
 
 type ArchiveViewerProps = {
   items: readonly ArchiveItem[]
@@ -89,6 +91,7 @@ export function ArchiveViewer({
   returnFocusTo,
   returnFocusFallback,
 }: ArchiveViewerProps) {
+  const { locale, copy } = useLocale()
   const overlayRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -203,10 +206,10 @@ export function ArchiveViewer({
           ref={closeRef}
           className="archive-viewer__close"
           type="button"
-          aria-label="Close archive viewer"
+          aria-label={copy.archive.close}
           onClick={onClose}
         >
-          Close
+          {copy.archive.close}
         </button>
         <figure className="archive-viewer__figure">
           <div className="archive-viewer__media">
@@ -214,41 +217,54 @@ export function ArchiveViewer({
               <div
                 className="archive-image-placeholder"
                 role="status"
-                aria-label="Image unavailable"
+                aria-label={copy.archive.imageUnavailable}
               >
-                <span>Image unavailable</span>
-                <small>The archive note is still available.</small>
+                <span>{copy.archive.imageUnavailable}</span>
+                <small>{copy.archive.imageUnavailableNote}</small>
               </div>
             ) : (
               <img
                 src={item.src1600}
-                alt={item.alt.en}
+                alt={item.alt[locale]}
                 onError={() => setImageFailed(true)}
               />
             )}
           </div>
           <figcaption>
-            <span className="museum-label text-ink">{item.type}</span>
-            <h3 id={captionId}>{item.caption.en}</h3>
-            {item.captureDate ? <time dateTime={item.captureDate}>{item.captureDate}</time> : null}
+            <span className="museum-label text-ink">{copy.archive[item.type]}</span>
+            <h3 id={captionId}>{item.caption[locale]}</h3>
+            <dl className="archive-viewer__metadata">
+              <div>
+                <dt>{copy.archive.date}</dt>
+                <dd>
+                  {item.captureDate ? (
+                    <time dateTime={item.captureDate}>{formatArchiveDate(item.captureDate, locale)}</time>
+                  ) : copy.archive.missingDate}
+                </dd>
+              </div>
+              {item.location ? (
+                <div><dt>{copy.archive.location}</dt><dd>{item.location[locale]}</dd></div>
+              ) : null}
+              <div><dt>{copy.archive.story}</dt><dd>{item.story[locale]}</dd></div>
+            </dl>
           </figcaption>
         </figure>
         <div className="archive-viewer__controls">
           <button
             type="button"
-            aria-label="Previous archive item"
+            aria-label={copy.archive.previous}
             disabled={!hasMultipleItems}
             onClick={() => move(-1)}
           >
-            Previous
+            {copy.archive.previous}
           </button>
           <button
             type="button"
-            aria-label="Next archive item"
+            aria-label={copy.archive.next}
             disabled={!hasMultipleItems}
             onClick={() => move(1)}
           >
-            Next
+            {copy.archive.next}
           </button>
         </div>
       </div>
