@@ -8,17 +8,11 @@ import type {
 const archiveCollections = new Set<ArchiveCollection>(['photos', 'memes', 'portraits'])
 
 function isSafeArchivePath(src: unknown, suffix: '-640.webp' | '-1600.webp'): src is string {
-  if (
-    typeof src !== 'string' ||
-    !src.startsWith('/archive/') ||
-    !src.endsWith(suffix) ||
-    /[%\\\0?#]/.test(src)
-  ) {
-    return false
-  }
-
-  const segments = src.slice('/archive/'.length).split('/')
-  return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+  if (typeof src !== 'string') return false
+  const size = suffix === '-640.webp' ? '640' : '1600'
+  return new RegExp(
+    `^/archive/(?:photos|memes)/[a-z0-9]+(?:-[a-z0-9]+)*-${size}\\.webp$`,
+  ).test(src)
 }
 
 function validateLocalizedText(value: unknown, field: string): asserts value is LocalizedText {
@@ -40,10 +34,10 @@ function validateLocalizedText(value: unknown, field: string): asserts value is 
 function isRealISODate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
+  if (month < 1 || month > 12 || day < 1) return false
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const daysPerMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return day <= daysPerMonth[month - 1]
 }
 
 function freezeLocalizedText(value: LocalizedText): LocalizedText {
@@ -78,8 +72,15 @@ export function validateArchive(items: readonly ArchiveItemInput[]): readonly Ar
     if (item.type === 'photo' && !memberships.includes('photos')) {
       throw new Error(`Archive photo "${item.id}" must belong to photos`)
     }
+    if (item.type === 'photo' && memberships.includes('memes')) {
+      throw new Error(`Archive photo "${item.id}" has contradictory collection memberships`)
+    }
     if (item.type === 'meme' && !memberships.includes('memes')) {
       throw new Error(`Archive meme "${item.id}" must belong to memes`)
+    }
+    if (item.type === 'meme' &&
+      (memberships.includes('photos') || memberships.includes('portraits'))) {
+      throw new Error(`Archive meme "${item.id}" has contradictory collection memberships`)
     }
 
     if (!isSafeArchivePath(item.src640, '-640.webp')) {

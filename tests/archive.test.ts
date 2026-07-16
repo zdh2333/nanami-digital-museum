@@ -48,18 +48,34 @@ describe('validateArchive', () => {
     expect(() => validateArchive([validPhoto({ collections })])).toThrow(message)
   })
 
-  it('requires memes to belong to memes while permitting portrait cross-membership', () => {
+  it('requires memes to belong only to memes', () => {
     const meme = validPhoto({
       id: 'nanami-serious-meme',
       type: 'meme',
-      collections: ['memes', 'portraits'],
+      collections: ['memes'],
       src640: '/archive/memes/nanami-serious-meme-640.webp',
       src1600: '/archive/memes/nanami-serious-meme-1600.webp',
     })
-    expect(validateArchive([meme])[0].collections).toEqual(['memes', 'portraits'])
+    expect(validateArchive([meme])[0].collections).toEqual(['memes'])
     expect(() => validateArchive([meme, validPhoto({ id: 'wrong-meme', type: 'meme' })])).toThrow(
       /memes/i,
     )
+  })
+
+  it.each([
+    ['photo plus memes', validPhoto({ collections: ['photos', 'memes'] })],
+    ['meme plus photos', validPhoto({
+      type: 'meme', collections: ['memes', 'photos'],
+      src640: '/archive/memes/nanami-window-watch-640.webp',
+      src1600: '/archive/memes/nanami-window-watch-1600.webp',
+    })],
+    ['meme plus portraits', validPhoto({
+      type: 'meme', collections: ['memes', 'portraits'],
+      src640: '/archive/memes/nanami-window-watch-640.webp',
+      src1600: '/archive/memes/nanami-window-watch-1600.webp',
+    })],
+  ] as const)('rejects contradictory membership: %s', (_name, item) => {
+    expect(() => validateArchive([item])).toThrow(/collection/i)
   })
 
   it.each([
@@ -74,6 +90,10 @@ describe('validateArchive', () => {
     '/archive/photos/nanami-640.webp#private',
     '/archive/photos/nanami\\-640.webp',
     '/archive/photos/nanami\0-640.webp',
+    '/archive/photos/nanami\ncat-640.webp',
+    '/archive/photos/nanami\tcat-640.webp',
+    '/archive/photos/nanami\rcat-640.webp',
+    '/archive/photos/nanami\u007fcat-640.webp',
     '/archive/photos/incomplete%-640.webp',
     '/archive/photos/nanami.jpg',
     '/archive/photos/nanami-1600.webp',
@@ -117,6 +137,18 @@ describe('validateArchive', () => {
       expect(() => validateArchive([validPhoto({ captureDate })])).toThrow(/capture date/i)
     },
   )
+
+  it.each([
+    ['0000-02-29', true],
+    ['0099-01-01', true],
+    ['0099-02-29', false],
+    ['1900-02-29', false],
+    ['2000-02-29', true],
+  ] as const)('validates proleptic Gregorian date %s', (captureDate, valid) => {
+    const validation = () => validateArchive([validPhoto({ captureDate })])
+    if (valid) expect(validation).not.toThrow()
+    else expect(validation).toThrow(/capture date/i)
+  })
 
   it.each([
     ['featured', { featured: 'yes' }, /featured/i],
