@@ -95,20 +95,42 @@ test.describe('desktop museum', () => {
     expect(failures).toEqual([])
   })
 
-  test('keeps localized archival hero metadata visibly present on desktop', async ({ page }) => {
+  test('keeps localized archival hero metadata visibly present on desktop', async ({ page }, testInfo) => {
     await page.goto('/')
 
     const hero = page.locator('#hero')
     const metadata = hero.locator('.hero-mobile-copy')
+    await waitForImage(hero.getByRole('img', { name: heroAlt }))
+    await settleFrames(page, 10)
     await expect(hero.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
     await expect(hero.getByText('NNM_000001', { exact: false })).toBeVisible()
     await expect(hero.getByText('Cinematic portrait', { exact: true })).toBeVisible()
-    await expect.poll(async () => (await metadata.boundingBox())?.width ?? 0).toBeGreaterThan(160)
+    const englishBox = await metadata.boundingBox()
+    expect(englishBox).not.toBeNull()
+    expect(englishBox?.width).toBeGreaterThanOrEqual(1440 * 0.4)
+    expect(englishBox?.width).toBeLessThanOrEqual(1440 * 0.46)
+    expect((englishBox?.x ?? 0) + (englishBox?.width ?? 0)).toBeLessThan(1440 * 0.5)
+    expect(
+      await hero.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' }).evaluate(
+        (node) => Number.parseFloat(getComputedStyle(node).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(40)
     await expect(metadata).toHaveCSS('clip', 'auto')
+    await page.screenshot({ path: testInfo.outputPath('hero-desktop-en.png') })
 
     await page.getByRole('button', { name: '中文' }).click()
     await expect(hero.getByRole('heading', { name: '一只黑猫。 无数种表情。' })).toBeVisible()
     await expect(hero.getByText('艺术化肖像', { exact: true })).toBeVisible()
+    await waitForImage(hero.getByRole('img', { name: '黑猫七海坐在昏暗的房间里，直接看向镜头。' }))
+    expect(
+      await hero.getByRole('heading', { name: '一只黑猫。 无数种表情。' }).evaluate(
+        (node) => Number.parseFloat(getComputedStyle(node).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(40)
+    await page.reload()
+    await waitForImage(hero.getByRole('img', { name: '黑猫七海坐在昏暗的房间里，直接看向镜头。' }))
+    await settleFrames(page, 10)
+    await page.screenshot({ path: testInfo.outputPath('hero-desktop-zh.png') })
   })
 
   test('keyboard navigation scrolls below the fixed header and updates the hash', async ({ page }) => {

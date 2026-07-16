@@ -74,17 +74,30 @@ describe('LivingArchive', () => {
 
   it('renders canonical English and Chinese timeline facts and the latest capture', () => {
     const { unmount } = renderArchive()
-    const timeline = screen.getByRole('list', { name: 'Nanami timeline' })
+    const timeline = document.querySelector('dl[aria-label="Nanami timeline"]') as HTMLElement
+    expect(timeline).not.toHaveAttribute('role')
+    expect(timeline.querySelectorAll('dt')).toHaveLength(3)
+    expect(timeline.querySelectorAll('dd')).toHaveLength(3)
     expect(timeline).toHaveTextContent('BornApril 1, 2021 · Utsunomiya, Tochigi, Japan')
     expect(timeline).toHaveTextContent('Current age2026 · 5 years old')
     expect(timeline).toHaveTextContent('Latest captureJune 22, 2026')
 
     unmount()
     renderArchive('zh-CN')
-    const chineseTimeline = screen.getByRole('list', { name: 'Nanami 时间线' })
+    const chineseTimeline = document.querySelector('dl[aria-label="Nanami 时间线"]') as HTMLElement
+    expect(chineseTimeline).not.toHaveAttribute('role')
     expect(chineseTimeline).toHaveTextContent('出生日期2021年4月1日 · 日本栃木县宇都宫市')
     expect(chineseTimeline).toHaveTextContent('当前年龄2026年 · 5岁')
     expect(chineseTimeline).toHaveTextContent('最近拍摄2026年6月22日')
+  })
+
+  it('uses natural count-aware Chinese collection labels', () => {
+    renderArchive('zh-CN')
+    const counts = collectionCounts(archiveItems)
+
+    expect(screen.getByRole('link', { name: `查看照片，共 ${counts.photos} 项` })).toBeVisible()
+    expect(screen.getByRole('link', { name: `查看表情包，共 ${counts.memes} 项` })).toBeVisible()
+    expect(screen.getByRole('link', { name: `查看肖像，共 ${counts.portraits} 项` })).toBeVisible()
   })
 
   it('omits latest capture when a fixture has no capture dates', () => {

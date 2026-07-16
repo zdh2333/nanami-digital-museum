@@ -54,7 +54,7 @@ export function LivingArchive({
         <p className="museum-label text-ink">{copy.living.eyebrow}</p>
         <h2 id="living-archive-title">{copy.living.title}</h2>
         <p className="living-archive__summary">{copy.living.summary}</p>
-        <dl className="living-archive__timeline" aria-label={copy.living.timelineLabel} role="list">
+        <dl className="living-archive__timeline" aria-label={copy.living.timelineLabel}>
           <div>
             <dt>{copy.living.born}</dt>
             <dd>

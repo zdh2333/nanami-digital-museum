@@ -359,7 +359,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       latestCapture: '最近拍摄',
       timelineLabel: 'Nanami 时间线',
       formatCurrentAge: (year, age) => `${year}年 · ${age}岁`,
-      formatCollectionLabel: (count, name) => `查看 ${count} 个${name}`,
+      formatCollectionLabel: (count, name) => `查看${name}，共 ${count} 项`,
       collectionDescriptions: {
         photos: 'Nanami 在自己领地里的日常片段。',
         memes: '把他的神态变成好笑的瞬间。',
