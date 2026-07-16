@@ -1,0 +1,108 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { LocaleProvider, useLocale } from '../i18n/LocaleProvider'
+import { nanamiProfile } from '../profile/nanami'
+import { SeoMetadata } from './SeoMetadata'
+
+function LocaleControls() {
+  const { setLocale } = useLocale()
+  return (
+    <>
+      <SeoMetadata />
+      <button type="button" onClick={() => setLocale('en')}>English</button>
+      <button type="button" onClick={() => setLocale('zh-CN')}>中文</button>
+    </>
+  )
+}
+
+function renderMetadata(strict = false) {
+  const content = <LocaleProvider><LocaleControls /></LocaleProvider>
+  return render(strict ? <StrictMode>{content}</StrictMode> : content)
+}
+
+function meta(selector: string) {
+  return document.head.querySelector<HTMLMetaElement>(selector)
+}
+
+beforeEach(() => {
+  document.head.innerHTML = ''
+  localStorage.clear()
+  Object.defineProperty(navigator, 'language', { configurable: true, value: 'en-US' })
+})
+
+describe('SeoMetadata', () => {
+  it('publishes the English metadata and fixed canonical sharing URLs', () => {
+    renderMetadata()
+
+    expect(document.title).toBe('Nanami Cat — A Living Archive')
+    expect(meta('meta[name="description"]')?.content).toBe(
+      'Nanami is a living male black cat born in Utsunomiya, Tochigi, Japan. Explore his living digital archive.',
+    )
+    expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
+    expect(meta('meta[property="og:locale"]')?.content).toBe('en_US')
+    expect(meta('meta[name="twitter:card"]')?.content).toBe('summary_large_image')
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://nanamicat.com/',
+    )
+    expect(meta('meta[property="og:url"]')?.content).toBe('https://nanamicat.com/')
+    expect(meta('meta[property="og:image"]')?.content).toBe(
+      'https://nanamicat.com/social/nanami-social-card.webp',
+    )
+    expect(meta('meta[name="twitter:image"]')?.content).toBe(
+      'https://nanamicat.com/social/nanami-social-card.webp',
+    )
+  })
+
+  it('updates localized metadata immediately and persists the selected locale', () => {
+    renderMetadata()
+
+    fireEvent.click(screen.getByRole('button', { name: '中文' }))
+
+    expect(document.title).toBe('Nanami Cat — 生活数字档案')
+    expect(meta('meta[name="description"]')?.content).toContain('生活数字档案')
+    expect(meta('meta[property="og:title"]')?.content).toBe(document.title)
+    expect(meta('meta[property="og:locale"]')?.content).toBe('zh_CN')
+    expect(meta('meta[name="twitter:title"]')?.content).toBe(document.title)
+    expect(localStorage.getItem('nanami-locale')).toBe('zh-CN')
+
+    fireEvent.click(screen.getByRole('button', { name: 'English' }))
+    expect(document.title).toBe('Nanami Cat — A Living Archive')
+  })
+
+  it('keeps one truthful Thing JSON-LD graph under StrictMode and rerenders', () => {
+    const { rerender } = renderMetadata(true)
+    rerender(
+      <StrictMode><LocaleProvider><LocaleControls /></LocaleProvider></StrictMode>,
+    )
+
+    const scripts = document.head.querySelectorAll('script[type="application/ld+json"]')
+    expect(scripts).toHaveLength(1)
+    const graph = JSON.parse(scripts[0].textContent ?? '{}')['@graph']
+    const website = graph.find((entry: { '@type': string }) => entry['@type'] === 'WebSite')
+    const nanami = graph.find((entry: { '@id': string }) => entry['@id'] === 'https://nanamicat.com/#nanami')
+
+    expect(website.about).toEqual({ '@id': 'https://nanamicat.com/#nanami' })
+    expect(nanami).toMatchObject({
+      '@type': 'Thing',
+      name: nanamiProfile.name,
+      gender: nanamiProfile.sex,
+      birthDate: nanamiProfile.birthDate,
+      birthPlace: {
+        '@type': 'Place',
+        name: 'Utsunomiya, Tochigi, Japan',
+      },
+      disambiguatingDescription: 'A living black cat.',
+    })
+    expect(nanami.additionalProperty).toContainEqual({
+      '@type': 'PropertyValue',
+      name: 'alive',
+      value: nanamiProfile.alive,
+    })
+
+    const serialized = JSON.stringify(graph).toLowerCase()
+    expect(serialized).not.toMatch(/person|memorial|deceased|female/)
+  })
+})

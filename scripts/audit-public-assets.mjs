@@ -6,10 +6,10 @@ import exifr from 'exifr'
 import sharp from 'sharp'
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
-const archiveRoot =
+const auditRoot =
   process.env.NODE_ENV === 'test' && process.env.NANAMI_ARCHIVE_ROOT
     ? resolve(process.env.NANAMI_ARCHIVE_ROOT)
-    : join(projectRoot, 'public', 'archive')
+    : join(projectRoot, 'public')
 const supportedExtensions = new Set(['.jpeg', '.jpg', '.png', '.webp'])
 
 async function assertArchiveRoot(directory) {
@@ -47,10 +47,10 @@ async function collectFiles(directory) {
     const path = join(directory, entry.name)
     const stats = await lstat(path)
     if (stats.isSymbolicLink()) {
-      throw new Error(`Symlinks are not allowed in public/archive: ${relative(archiveRoot, path)}`)
+      throw new Error(`Symlinks are not allowed in public/archive assets: ${relative(auditRoot, path)}`)
     }
     if (stats.isDirectory()) files.push(...(await collectFiles(path)))
-    else if (stats.isFile() && entry.name !== '.gitkeep') files.push(path)
+    else if (stats.isFile() && supportedExtensions.has(extname(entry.name).toLowerCase())) files.push(path)
   }
   return files
 }
@@ -63,7 +63,7 @@ function metadataKeys(value) {
 async function inspectImage(file) {
   const extension = extname(file).toLowerCase()
   if (!supportedExtensions.has(extension)) {
-    throw new Error(`Unsupported public archive asset format: ${relative(archiveRoot, file)}`)
+    throw new Error(`Unsupported public image asset format: ${relative(auditRoot, file)}`)
   }
 
   let metadata
@@ -72,7 +72,7 @@ async function inspectImage(file) {
     await sharp(file, { failOn: 'error' }).raw().toBuffer()
   } catch {
     throw new Error(
-      `Image could not be inspected because it is invalid or corrupt: ${relative(archiveRoot, file)}`,
+      `Image could not be inspected because it is invalid or corrupt: ${relative(auditRoot, file)}`,
     )
   }
 
@@ -104,8 +104,8 @@ async function inspectImage(file) {
 }
 
 async function main() {
-  await assertArchiveRoot(archiveRoot)
-  const files = await collectFiles(archiveRoot)
+  await assertArchiveRoot(auditRoot)
+  const files = await collectFiles(auditRoot)
   const violations = []
 
   for (const file of files) {

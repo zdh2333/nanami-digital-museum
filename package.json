@@ -11,7 +11,8 @@
     "test:e2e:desktop": "playwright test --project=desktop",
     "test:e2e:mobile": "playwright test --project=mobile",
     "audit:assets": "node scripts/audit-public-assets.mjs",
-    "archive:build": "node scripts/optimize-archive-assets.mjs"
+    "archive:build": "node scripts/optimize-archive-assets.mjs",
+    "share:build": "node scripts/build-share-assets.mjs"
   },
   "dependencies": {
     "framer-motion": "12.40.0",

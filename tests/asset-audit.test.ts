@@ -53,6 +53,23 @@ describe('public asset privacy audit', () => {
     expect(result.stdout).toContain('Asset privacy audit passed (1 files checked)')
   })
 
+  it('audits hero, social, and favicon images when they are under the configured public root', async () => {
+    const directory = await createArchiveDirectory()
+    await mkdir(join(directory, 'hero'))
+    await mkdir(join(directory, 'social'))
+    const clean = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: '#000000' },
+    }).webp().toBuffer()
+    await writeFile(join(directory, 'hero', 'hero.webp'), clean)
+    await writeFile(join(directory, 'social', 'card.webp'), clean)
+    await writeFile(join(directory, 'favicon.png'), await sharp(clean).png().toBuffer())
+
+    const result = runAudit(directory)
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Asset privacy audit passed (3 files checked)')
+  })
+
   it('fails when the configured archive root is missing', async () => {
     const directory = await createArchiveDirectory()
     const missingDirectory = join(directory, 'missing')
