@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
-import { chmod, mkdir, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -10,9 +11,7 @@ const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const libraryPath = process.env.NANAMI_PHOTOS_DB ?? join(
   homedir(), 'Pictures', 'Photos Library.photoslibrary', 'database', 'Photos.sqlite',
 )
-const libraryUrl = pathToFileURL(libraryPath)
-libraryUrl.searchParams.set('immutable', '1')
-const libraryUri = libraryUrl.href
+const libraryUri = buildReadOnlyLibraryUri(libraryPath)
 const outputPath = process.env.NANAMI_PHOTOS_INVENTORY_OUTPUT ?? join(
   projectRoot, '.superpowers', 'private', 'nanami-photo-candidates.json',
 )
@@ -23,7 +22,34 @@ export function chooseInventoryCandidates(rows) {
   ))
 }
 
+export function buildReadOnlyLibraryUri(path) {
+  const url = pathToFileURL(path)
+  url.searchParams.set('mode', 'ro')
+  return url.href
+}
+
+export async function writePrivateJson(path, value) {
+  await mkdir(dirname(path), { recursive: true })
+  const temporaryPath = join(
+    dirname(path), `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
+  )
+  let handle
+  try {
+    handle = await open(temporaryPath, 'wx', 0o600)
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`)
+    await handle.sync()
+    await handle.close()
+    handle = undefined
+    await rename(temporaryPath, path)
+  } catch (error) {
+    if (handle) await handle.close().catch(() => {})
+    await unlink(temporaryPath).catch(() => {})
+    throw error
+  }
+}
+
 export const inventoryQuery = `
+PRAGMA query_only=ON;
 SELECT
   a.ZUUID AS uuid,
   strftime('%Y-%m-%dT%H:%M:%SZ', a.ZDATECREATED + 978307200, 'unixepoch') AS captureDate,
@@ -52,9 +78,7 @@ LIMIT 300;
 async function main() {
   const { stdout } = await execFileAsync('sqlite3', ['-json', libraryUri, inventoryQuery], { maxBuffer: 8 * 1024 * 1024 })
   const candidates = chooseInventoryCandidates(JSON.parse(stdout || '[]'))
-  await mkdir(dirname(outputPath), { recursive: true })
-  await writeFile(outputPath, `${JSON.stringify(candidates, null, 2)}\n`, { mode: 0o600 })
-  await chmod(outputPath, 0o600)
+  await writePrivateJson(outputPath, candidates)
   console.log(`Wrote ${candidates.length} local still-image candidates to the private review area.`)
 }
 
