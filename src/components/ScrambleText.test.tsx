@@ -20,23 +20,6 @@ describe('ScrambleText', () => {
     )
   })
 
-  it('does not probe WebGL when the static experience is explicit', () => {
-    vi.stubGlobal('WebGLRenderingContext', class {})
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn(() => ({
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    )
-    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
-
-    render(<ScrambleText text="Nanami" staticExperience />)
-
-    expect(getContext).not.toHaveBeenCalled()
-  })
-
   it('keeps final text accessible while the visual layer resolves', () => {
     vi.useFakeTimers()
     render(

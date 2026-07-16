@@ -23,7 +23,6 @@ export default defineConfig({
     trace: 'retain-on-failure',
     launchOptions: {
       ...(chromePath ? { executablePath: chromePath } : {}),
-      args: ['--enable-webgl', '--ignore-gpu-blocklist'],
     },
   },
   projects: [
