@@ -4,7 +4,7 @@ import { HeroPortrait } from './components/HeroPortrait'
 import { LivingArchive } from './components/LivingArchive'
 import { MoodArchive } from './components/MoodArchive'
 import { Navigation } from './components/Navigation'
-import { Presence } from './components/Presence'
+import { Profile } from './components/Profile'
 import { useReducedExperience } from './hooks/useReducedExperience'
 
 export function App() {
@@ -29,7 +29,7 @@ export function App() {
           </p>
         </div>
       </section>
-      <Presence staticExperience={staticExperience} />
+      <Profile staticExperience={staticExperience} />
       <FieldNotes staticExperience={staticExperience} />
       <MoodArchive staticExperience={staticExperience} />
       <LivingArchive staticExperience={staticExperience} />

@@ -245,15 +245,54 @@ a {
 
 .presence__copy h2 {
   margin-top: clamp(1.25rem, 3vw, 2.5rem);
-  font-size: clamp(4.25rem, 11vw, 11rem);
+  font-size: clamp(3.75rem, 8vw, 8rem);
 }
 
 .presence__note {
   max-width: 34rem;
-  margin: clamp(2rem, 5vw, 5rem) 0 0 auto;
+  margin: clamp(2rem, 4vw, 3.5rem) 0 0;
   color: var(--color-bone-muted);
   font-size: clamp(1rem, 1.25vw, 1.25rem);
   line-height: 1.65;
+}
+
+.presence__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: clamp(2rem, 4vw, 3.5rem) 0 0;
+  border-top: 1px solid rgb(144 165 143 / 36%);
+  border-bottom: 1px solid rgb(144 165 143 / 36%);
+}
+
+.presence__fact {
+  min-width: 0;
+  padding: 1.25rem 1.25rem 1.35rem 0;
+  border-top: 1px solid rgb(144 165 143 / 20%);
+}
+
+.presence__fact:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.presence__fact:nth-child(even) {
+  padding-right: 0;
+  padding-left: 1.25rem;
+  border-left: 1px solid rgb(144 165 143 / 20%);
+}
+
+.presence__fact dt {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.presence__fact dd {
+  margin: 0.55rem 0 0;
+  color: var(--color-bone);
+  font-size: clamp(1rem, 1.4vw, 1.3rem);
+  line-height: 1.35;
 }
 
 .presence__media {
@@ -976,6 +1015,21 @@ a {
 
   .presence__note {
     margin-left: 0;
+  }
+
+  .presence__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .presence__fact,
+  .presence__fact:nth-child(even) {
+    padding: 1rem 0 1.1rem;
+    border-top: 1px solid rgb(144 165 143 / 20%);
+    border-left: 0;
+  }
+
+  .presence__fact:first-child {
+    border-top: 0;
   }
 
   .presence__media {

@@ -1,5 +1,17 @@
 import type { Locale } from './types'
 
+function formatProfileDate(locale: Locale, birthDate: string): string {
+  const [year, month, day] = birthDate.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
 export interface MuseumCopy {
   nav: {
     home: string
@@ -20,10 +32,12 @@ export interface MuseumCopy {
     summary: string
     born: string
     birthplace: string
+    birthplaceValue: string
     sex: string
     male: string
     age: string
-    years: string
+    formatAge: (age: number) => string
+    formatBirthDate: (birthDate: string) => string
     room: string
     roomCaption: string
   }
@@ -111,10 +125,12 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
         'Nanami is a black cat with a red collar, a bent tail tip, and firm opinions about every room he enters.',
       born: 'Born',
       birthplace: 'Birthplace',
+      birthplaceValue: 'Utsunomiya, Tochigi, Japan',
       sex: 'Sex',
       male: 'Male',
       age: 'Age',
-      years: 'years old',
+      formatAge: (age) => `${age} years old`,
+      formatBirthDate: (birthDate) => formatProfileDate('en', birthDate),
       room: 'His room',
       roomCaption: 'Nanami at home, keeping watch over his territory.',
     },
@@ -209,10 +225,12 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       summary: 'Nanami 是一只戴红项圈的黑猫，尾巴尖弯成直角，对家里的每个房间都很有主见。',
       born: '出生日期',
       birthplace: '出生地',
+      birthplaceValue: '日本栃木县宇都宫市',
       sex: '性别',
-      male: '公猫',
+      male: '男',
       age: '年龄',
-      years: '岁',
+      formatAge: (age) => `${age}岁`,
+      formatBirthDate: (birthDate) => formatProfileDate('zh-CN', birthDate),
       room: '他的房间',
       roomCaption: 'Nanami 在家中巡视自己的领地。',
     },

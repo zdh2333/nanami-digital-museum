@@ -76,7 +76,7 @@ describe('Nanami Cat museum shell', () => {
   it('uses the approved living archive copy without mourning language', () => {
     const { container } = renderApp()
 
-    expect(screen.getByText('She runs the house.')).toBeVisible()
+    expect(screen.getByText('He runs the house.')).toBeVisible()
     expect(screen.getByRole('heading', { name: 'FIELD NOTES' })).toBeVisible()
     ;[
       'YELLOW-GREEN EYES',
