@@ -354,8 +354,8 @@ test.describe('desktop museum', () => {
           }
           await section.evaluate((node) => node.scrollIntoView({ block: 'start' }))
           const expectedTop = id === 'hero' ? 0 : 88
-          await expect.poll(() => section.evaluate((node) => Math.abs(node.getBoundingClientRect().top))).toBeGreaterThanOrEqual(expectedTop - 1)
-          await expect.poll(() => section.evaluate((node) => Math.abs(node.getBoundingClientRect().top))).toBeLessThanOrEqual(expectedTop + 1)
+          await expect.poll(() => section.evaluate((node) => node.getBoundingClientRect().top)).toBeGreaterThanOrEqual(expectedTop - 1)
+          await expect.poll(() => section.evaluate((node) => node.getBoundingClientRect().top)).toBeLessThanOrEqual(expectedTop + 1)
           await settleFrames(page, 2)
           await page.screenshot({
             path: testInfo.outputPath(
