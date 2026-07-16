@@ -157,6 +157,33 @@ const archiveSeed: readonly ArchiveItemInput[] = [
     story: text('All appointments must wait until the nap is complete.', '所有预约都要等到这一觉睡完。'),
     faceChecked: true, featured: false, order: 24,
   },
+  {
+    id: 'nanami-photo-017', type: 'photo', collections: ['photos'],
+    src640: '/archive/photos/nanami-photo-017-640.webp', src1600: '/archive/photos/nanami-photo-017-1600.webp',
+    caption: text('Paws out, afternoon paused.', '爪子摊开，午后暂停。'),
+    alt: text('Nanami lying across a grey sofa with his front paws stretched toward the camera.', '七海躺在灰色沙发上，两只前爪朝镜头伸展开。'),
+    captureDate: '2026-06-19',
+    story: text('A long, loose stretch turns the sofa into a quiet resting place.', '一个松松的长伸展，让沙发变成安静的休息处。'),
+    faceChecked: true, featured: true, order: 25,
+  },
+  {
+    id: 'nanami-photo-018', type: 'photo', collections: ['photos'],
+    src640: '/archive/photos/nanami-photo-018-640.webp', src1600: '/archive/photos/nanami-photo-018-1600.webp',
+    caption: text('Window-side eye contact.', '窗边的对视。'),
+    alt: text('Nanami reclining on grey bedding near a bright window and looking directly at the camera.', '七海斜躺在明亮窗边的灰色床品上，直接看向镜头。'),
+    captureDate: '2026-06-22',
+    story: text('He settles by the window, then holds the camera in a calm, steady gaze.', '七海在窗边安顿下来，用平静而稳定的目光看着镜头。'),
+    faceChecked: true, featured: true, order: 26,
+  },
+  {
+    id: 'nanami-photo-019', type: 'photo', collections: ['photos', 'portraits'],
+    src640: '/archive/photos/nanami-photo-019-640.webp', src1600: '/archive/photos/nanami-photo-019-1600.webp',
+    caption: text('A closer inspection.', '更近一步的检查。'),
+    alt: text('Close portrait of Nanami facing the camera beside a window.', '七海在窗边正对镜头的近距离肖像。'),
+    captureDate: '2026-06-22',
+    story: text('The distance closes until his focused eyes fill the frame.', '距离一点点拉近，直到他专注的眼睛占满画面。'),
+    faceChecked: true, featured: false, order: 27,
+  },
 ]
 
 export const archiveItems = validateArchive(archiveSeed)
