@@ -9,8 +9,8 @@ const sectionOrder = [
   'closing',
 ] as const
 
-const posterAlt =
-  'Nanami, a black cat with yellow-green eyes and a kinked tail tip'
+const heroAlt =
+  'Nanami sitting in a dark room and looking directly at the camera.'
 
 function collectRuntimeFailures(page: Page) {
   const failures: string[] = []
@@ -37,13 +37,6 @@ async function waitForImage(image: ReturnType<Page['locator']>) {
       return element.complete && element.naturalWidth > 0
     }))
     .toBe(true)
-}
-
-async function waitForModel(page: Page) {
-  const stage = page.locator('.hero-3d-stage')
-  await expect(stage).toHaveAttribute('data-model-ready', 'true', { timeout: 30_000 })
-  await expect(page.locator('.hero-3d-canvas canvas')).toBeVisible()
-  return stage
 }
 
 async function settleFrames(page: Page, frames = 5) {
@@ -87,9 +80,9 @@ test.describe('desktop museum', () => {
   test('has exact copy, clean runtime, and no horizontal overflow', async ({ page }) => {
     const failures = collectRuntimeFailures(page)
     await page.goto('/')
-    await waitForModel(page)
+    await waitForImage(page.getByRole('img', { name: heroAlt }))
 
-    await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'She runs the house.' })).toBeAttached()
     await expect(page.getByText('RIGHT-ANGLE TAIL', { exact: true })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeAttached()
@@ -115,49 +108,26 @@ test.describe('desktop museum', () => {
       .poll(() => page.locator('#field-notes').evaluate((node) => Math.round(node.getBoundingClientRect().top)))
       .toBeLessThanOrEqual(100)
 
-    await page.getByRole('link', { name: 'Presence' }).focus()
+    await page.getByRole('link', { name: 'About' }).focus()
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/#presence$/)
     await expect(page.locator('#presence')).toBeInViewport()
   })
 
-  test('loads and manipulates the real desktop GLB while hiding the poster', async ({ page }) => {
-    const modelResponses: { url: string; status: number }[] = []
-    page.on('response', (response) => {
-      if (response.url().endsWith('/models/nanami.glb')) {
-        modelResponses.push({ url: response.url(), status: response.status() })
-      }
+  test('loads the approved cinematic hero without any legacy 3D requests', async ({ page }) => {
+    const modelRequests: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/models/')) modelRequests.push(request.url())
     })
     await page.goto('/')
-    await waitForModel(page)
+    const hero = page.getByRole('img', { name: heroAlt })
+    await waitForImage(hero)
 
-    expect(modelResponses).toHaveLength(1)
-    expect(modelResponses[0]).toMatchObject({ status: 200 })
-    expect(new URL(modelResponses[0].url).pathname).toBe('/models/nanami.glb')
-    await expect(page.locator('.hero-poster')).toHaveAttribute('aria-hidden', 'true')
-    await expect(page.getByText('Drag to turn', { exact: true })).toBeVisible()
-
-    const interaction = page.getByRole('img', { name: 'Interactive 3D portrait of Nanami' })
-    await interaction.focus()
-    await expect(interaction).toBeFocused()
-    const initialYaw = await interaction.getAttribute('data-interaction-yaw')
-    await page.keyboard.press('ArrowRight')
-    await expect(interaction).not.toHaveAttribute('data-interaction-yaw', initialYaw ?? '')
-    await settleFrames(page)
-
-    const canvas = page.locator('.hero-3d-canvas canvas')
-    const beforeDrag = await canvas.screenshot()
-    const box = await canvas.boundingBox()
-    expect(box).not.toBeNull()
-    if (box) {
-      await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.48)
-      await page.mouse.down()
-      await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.48, { steps: 5 })
-      await page.mouse.up()
-    }
-    await settleFrames(page)
-    const afterDrag = await canvas.screenshot()
-    expect(afterDrag.equals(beforeDrag)).toBe(false)
+    await expect(hero).toHaveAttribute('src', '/hero/nanami-cinematic-hero.webp')
+    expect(await hero.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBe(1672)
+    await expect(page.locator('canvas')).toHaveCount(0)
+    await expect(page.getByText('Drag to turn', { exact: true })).toHaveCount(0)
+    expect(modelRequests).toEqual([])
   })
 
   test('serves 640 thumbnails and a keyboard-complete 1600 archive viewer', async ({ page }) => {
@@ -201,20 +171,20 @@ test.describe('desktop museum', () => {
     await expect(opener).toBeFocused()
   })
 
-  test('uses accessible poster without model requests for reduced motion', async ({ page }) => {
+  test('keeps the same accessible hero without model requests for reduced motion', async ({ page }) => {
     const modelRequests: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/models/')) modelRequests.push(request.url())
     })
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/')
-    const poster = page.getByRole('img', { name: posterAlt })
-    await waitForImage(poster)
-    await expect(page.locator('.hero-3d-canvas')).toHaveCount(0)
+    const hero = page.getByRole('img', { name: heroAlt })
+    await waitForImage(hero)
+    await expect(page.locator('canvas')).toHaveCount(0)
     expect(modelRequests).toEqual([])
   })
 
-  test('falls back cleanly when WebGL is unavailable', async ({ page }) => {
+  test('does not depend on WebGL', async ({ page }) => {
     const modelRequests: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/models/')) modelRequests.push(request.url())
@@ -227,15 +197,15 @@ test.describe('desktop museum', () => {
       } as typeof HTMLCanvasElement.prototype.getContext
     })
     await page.goto('/')
-    await waitForImage(page.getByRole('img', { name: posterAlt }))
-    await expect(page.locator('.hero-3d-canvas')).toHaveCount(0)
+    await waitForImage(page.getByRole('img', { name: heroAlt }))
+    await expect(page.locator('canvas')).toHaveCount(0)
     expect(modelRequests).toEqual([])
   })
 
   test('captures six desktop section review artifacts', async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name !== 'desktop')
     await page.goto('/')
-    await waitForModel(page)
+    await waitForImage(page.getByRole('img', { name: heroAlt }))
     await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; }' })
 
     for (const [index, id] of sectionOrder.entries()) {
@@ -257,24 +227,24 @@ test.describe('mobile safety', () => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile-only coverage')
   })
 
-  test('loads, scrolls, navigates, filters, and uses only the mobile GLB', async ({ page }, testInfo) => {
+  test('loads, scrolls, navigates, filters, and avoids legacy 3D', async ({ page }, testInfo) => {
     const modelRequests: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/models/')) modelRequests.push(request.url())
     })
     await page.goto('/')
-    await waitForModel(page)
+    await waitForImage(page.getByRole('img', { name: heroAlt }))
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true)
-    expect(modelRequests.some((url) => url.endsWith('/models/nanami-mobile.glb'))).toBe(true)
-    expect(modelRequests.some((url) => url.endsWith('/models/nanami.glb'))).toBe(false)
+    expect(modelRequests).toEqual([])
+    await expect(page.locator('canvas')).toHaveCount(0)
 
     const startY = await page.evaluate(() => window.scrollY)
     await page.mouse.wheel(0, 700)
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(startY)
 
-    await page.getByRole('link', { name: 'Mood archive' }).click()
+    await page.getByRole('link', { name: 'Explore' }).click()
     await expect(page.locator('#mood-archive')).toBeInViewport()
     await page.getByRole('button', { name: 'Memes', exact: true }).click()
     await expect(page.locator('.archive-card')).toHaveCount(6)

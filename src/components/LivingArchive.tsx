@@ -3,7 +3,7 @@ import { SectionReveal } from './SectionReveal'
 const collections = [
   ['Photos', 'Unscripted daily life.'],
   ['Memes', 'The expressions that became a language.'],
-  ['3D', 'A digital presence you can meet from every angle.'],
+  ['Portraits', 'High-resolution studies of her expressions and gaze.'],
 ] as const
 
 type LivingArchiveProps = { staticExperience: boolean }

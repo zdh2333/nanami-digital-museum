@@ -4,12 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
 vi.mock('./components/Hero3D', () => ({
-  Hero3D: () => (
-    <img
-      src="/posters/nanami-hero.webp"
-      alt="Nanami, a black cat with yellow-green eyes and a kinked tail tip"
-    />
-  ),
+  Hero3D: () => <div data-testid="legacy-3d-hero" />,
 }))
 
 describe('Nanami Cat museum shell', () => {
@@ -21,17 +16,20 @@ describe('Nanami Cat museum shell', () => {
         level: 1,
         name: 'ONE BLACK CAT. MANY MOODS.',
       }),
-    ).toBeVisible()
+    ).toBeInTheDocument()
   })
 
-  it('pairs the hero copy with Nanami’s accessible static portrait initially', () => {
-    render(<App />)
+  it('uses the approved cinematic Nanami hero artwork instead of the legacy 3D hero', () => {
+    const { container } = render(<App />)
 
-    expect(
-      screen.getByAltText(
-        'Nanami, a black cat with yellow-green eyes and a kinked tail tip',
-      ),
-    ).toBeVisible()
+    const portrait = screen.getByAltText(
+      'Nanami sitting in a dark room and looking directly at the camera.',
+    )
+    expect(portrait).toBeVisible()
+    expect(portrait).toHaveAttribute('src', '/hero/nanami-cinematic-hero.webp')
+    expect(portrait).toHaveAttribute('fetchpriority', 'high')
+    expect(screen.queryByTestId('legacy-3d-hero')).not.toBeInTheDocument()
+    expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 
   it('presents the six museum sections in the approved narrative order', () => {
@@ -67,9 +65,10 @@ describe('Nanami Cat museum shell', () => {
     })
     expect(screen.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeVisible()
     expect(screen.getByText('Three collections. Always growing.')).toBeVisible()
-    ;['Photos', 'Memes', '3D'].forEach((label) => {
+    ;['Photos', 'Memes', 'Portraits'].forEach((label) => {
       expect(screen.getAllByText(label)[0]).toBeVisible()
     })
+    expect(screen.queryByText('3D')).not.toBeInTheDocument()
     expect(screen.getByText('Nanami is probably watching you.')).toBeVisible()
     expect(container.textContent).not.toMatch(
       /memorial|in memory|remembering|rest in peace/i,
