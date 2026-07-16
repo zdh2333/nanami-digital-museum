@@ -1,6 +1,16 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { extname, join, relative, resolve } from 'node:path'
+import { TextDecoder } from 'node:util'
 
 import { render, screen } from '@testing-library/react'
 import { createElement } from 'react'
@@ -56,19 +66,6 @@ const rootEntryAndConfigFiles = [
   'tsconfig.app.json',
   'tsconfig.node.json',
 ]
-const textExtensions = new Set([
-  '.cjs',
-  '.css',
-  '.cts',
-  '.html',
-  '.js',
-  '.jsx',
-  '.json',
-  '.mjs',
-  '.mts',
-  '.ts',
-  '.tsx',
-])
 const forbiddenSourcePatterns = [
   /@react-three(?:\/|\b)/,
   /(?:from\s*|import\s*\()\s*['"]three(?:\/[^'"]*)?['"]/,
@@ -116,8 +113,49 @@ function filesBelow(path: string): string[] {
   })
 }
 
-function isTextFile(path: string): boolean {
-  return textExtensions.has(extname(path).toLowerCase())
+const utf8Decoder = new TextDecoder('utf-8', { fatal: true })
+
+function decodeTextFile(path: string): string | null {
+  let contents: string
+  try {
+    contents = utf8Decoder.decode(readFileSync(path))
+  } catch {
+    return null
+  }
+
+  if (contents.includes('\0')) return null
+  for (const character of contents) {
+    const codePoint = character.codePointAt(0) ?? 0
+    if (codePoint < 0x20 && !['\t', '\n', '\r', '\f'].includes(character)) {
+      return null
+    }
+  }
+  return contents
+}
+
+function isProductionTestFile(path: string, base: string): boolean {
+  const pathSegments = relative(base, path).split(/[\\/]/)
+  return pathSegments.includes('__tests__')
+    || /\.(?:test|spec)\.[^/\\]+$/.test(pathSegments.at(-1) ?? '')
+}
+
+function scanFiles(
+  files: string[],
+  base: string,
+  options: { build?: boolean; excludeTests?: boolean } = { excludeTests: true },
+): string[] {
+  return files.flatMap((file) => {
+    if (options.excludeTests !== false && isProductionTestFile(file, base)) return []
+    if (/\.gl(?:b|tf)$/i.test(file)) return [`${relative(base, file)} is a model asset`]
+    const contents = decodeTextFile(file)
+    if (contents === null) return []
+    return findForbidden3DReferences(
+      contents,
+      options.build && extname(file).toLowerCase() === '.js'
+        ? 'build-js'
+        : 'source',
+    ).map((pattern) => `${relative(base, file)} matches ${pattern}`)
+  })
 }
 
 describe('legacy 3D removal', () => {
@@ -155,15 +193,7 @@ describe('legacy 3D removal', () => {
       files.push(...filesBelow(join(root, directory)))
     }
 
-    const violations = files.flatMap((file) => {
-      if (/\.gl(?:b|tf)$/i.test(file)) return [`${relative(root, file)} is a model asset`]
-      if (!isTextFile(file)) return []
-      const contents = readFileSync(file, 'utf8')
-      return findForbidden3DReferences(contents)
-        .map((pattern) => `${relative(root, file)} matches ${pattern}`)
-    })
-
-    expect(violations).toEqual([])
+    expect(scanFiles(files, root)).toEqual([])
   })
 
   it('renders the real localized App without a canvas', () => {
@@ -182,20 +212,11 @@ describe('legacy 3D removal', () => {
     const distFiles = filesBelow(join(root, 'dist'))
     expect(distFiles.some((file) => /\.gl(?:b|tf)$/i.test(file))).toBe(false)
 
-    const builtTextFiles = distFiles.filter((file) =>
-      ['.html', '.js', '.css'].includes(extname(file).toLowerCase()),
-    )
-    const violations = builtTextFiles.flatMap((file) =>
-      findForbidden3DReferences(
-        readFileSync(file, 'utf8'),
-        extname(file).toLowerCase() === '.js' ? 'build-js' : 'source',
-      )
-        .map((pattern) => `${relative(root, file)} matches ${pattern}`),
-    )
-    expect(violations).toEqual([])
+    expect(scanFiles(distFiles, root, { build: true, excludeTests: false })).toEqual([])
 
-    const buildText = builtTextFiles
-      .map((file) => readFileSync(file, 'utf8'))
+    const buildText = distFiles
+      .map(decodeTextFile)
+      .filter((contents): contents is string => contents !== null)
       .join('\n')
     expect(buildText).toContain('/hero/nanami-cinematic-hero.webp')
   })
@@ -231,5 +252,47 @@ describe('3D reference scanner fixtures', () => {
     ].join('\n')
 
     expect(findForbidden3DReferences(metadata)).toEqual([])
+  })
+
+  it('scans safely decodable deployed text regardless of filename extension', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'nanami-no-3d-'))
+    try {
+      const fixtures = {
+        'robots.txt': 'Disallow: /models/nanami.glb',
+        'sitemap.xml': '<url><loc>/models/nanami.gltf</loc></url>',
+        'icon.svg': '<svg><script>import { Scene } from "three"</script></svg>',
+        'site.webmanifest': '{"preview":"/models/nanami.glb"}',
+        'runtime-entry': '<script src="https://cdn.example.test/three.js"></script>',
+      }
+      for (const [name, contents] of Object.entries(fixtures)) {
+        writeFileSync(join(fixtureRoot, name), contents)
+      }
+      writeFileSync(
+        join(fixtureRoot, 'binary.webp'),
+        Buffer.concat([Buffer.from([0, 255, 0]), Buffer.from('/models/decoy.glb')]),
+      )
+
+      const violations = scanFiles(filesBelow(fixtureRoot), fixtureRoot)
+      for (const name of Object.keys(fixtures)) {
+        expect(violations.some((violation) => violation.startsWith(name)), name).toBe(true)
+      }
+      expect(violations.some((violation) => violation.startsWith('binary.webp'))).toBe(false)
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('excludes test and spec files from a production source scan', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'nanami-no-3d-tests-'))
+    try {
+      mkdirSync(join(fixtureRoot, '__tests__'))
+      writeFileSync(join(fixtureRoot, 'Widget.test.tsx'), '<canvas />')
+      writeFileSync(join(fixtureRoot, 'Widget.spec.ts'), "import { Scene } from 'three'")
+      writeFileSync(join(fixtureRoot, '__tests__', 'helper.ts'), 'new WebGLRenderer()')
+
+      expect(scanFiles(filesBelow(fixtureRoot), fixtureRoot)).toEqual([])
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
   })
 })
