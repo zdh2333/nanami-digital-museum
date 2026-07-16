@@ -56,6 +56,8 @@ export interface MuseumCopy {
   hero: {
     title: string
     disclosure: string
+    alt: string
+    archiveIndex: string
   }
   profile: {
     eyebrow: string
@@ -77,6 +79,7 @@ export interface MuseumCopy {
     title: string
     observed: string
     ownerConfirmed: string
+    observationSeparator: string
     eyes: NoteCopy
     tail: NoteCopy
     collar: NoteCopy
@@ -115,6 +118,9 @@ export interface MuseumCopy {
     born: string
     currentAge: string
     latestCapture: string
+    timelineLabel: string
+    formatCurrentAge: (year: number, age: number) => string
+    formatCollectionLabel: (count: number, name: string) => string
     collectionDescriptions: {
       photos: string
       memes: string
@@ -149,6 +155,8 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
     hero: {
       title: 'ONE BLACK CAT.\nMANY MOODS.',
       disclosure: 'Cinematic portrait',
+      alt: 'Nanami, a black cat, sitting in a dark room and looking directly at the camera.',
+      archiveIndex: 'Archive index:',
     },
     profile: {
       eyebrow: 'Profile · 01',
@@ -178,14 +186,15 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       eyebrow: 'Field Notes · 03',
       title: 'Ways to recognize Nanami.',
       observed: 'Observed',
-      ownerConfirmed: 'Owner confirmed',
+      ownerConfirmed: 'Owner-confirmed',
+      observationSeparator: ':',
       eyes: {
         term: 'Yellow-green eyes',
         detail: 'Bright, watchful, and hard to ignore.',
         observation: 'His gaze follows movement across the room.',
       },
       tail: {
-        term: 'Right-angle tail',
+        term: 'Right-angle tail tip',
         detail: 'The tip bends into his unmistakable signature.',
         observation: 'The bend remains visible whether he sits or walks.',
       },
@@ -233,6 +242,9 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       born: 'Born',
       currentAge: 'Current age',
       latestCapture: 'Latest capture',
+      timelineLabel: 'Nanami timeline',
+      formatCurrentAge: (year, age) => `${year} · ${age} years old`,
+      formatCollectionLabel: (count, name) => `View ${count} ${name.toLowerCase()}`,
       collectionDescriptions: {
         photos: 'Everyday scenes from Nanami’s territory.',
         memes: 'His expressions, translated into jokes.',
@@ -259,6 +271,8 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
     hero: {
       title: '一只黑猫。\n无数种表情。',
       disclosure: '艺术化肖像',
+      alt: '黑猫七海坐在昏暗的房间里，直接看向镜头。',
+      archiveIndex: '档案编号：',
     },
     profile: {
       eyebrow: '个人档案 · 01',
@@ -288,13 +302,14 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       title: '如何认出 Nanami。',
       observed: '观察记录',
       ownerConfirmed: '主人确认',
+      observationSeparator: '：',
       eyes: {
         term: '黄绿色眼睛',
         detail: '明亮、警觉，让人无法忽视。',
         observation: '房间里一有动静，他的目光就会跟过去。',
       },
       tail: {
-        term: '直角尾巴',
+        term: '直角尾巴尖',
         detail: '尾巴尖的弯折是他独一无二的标志。',
         observation: '无论坐着还是走动，都能看到这个弯角。',
       },
@@ -342,6 +357,9 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       born: '出生日期',
       currentAge: '当前年龄',
       latestCapture: '最近拍摄',
+      timelineLabel: 'Nanami 时间线',
+      formatCurrentAge: (year, age) => `${year}年 · ${age}岁`,
+      formatCollectionLabel: (count, name) => `查看 ${count} 个${name}`,
       collectionDescriptions: {
         photos: 'Nanami 在自己领地里的日常片段。',
         memes: '把他的神态变成好笑的瞬间。',

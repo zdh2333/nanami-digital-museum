@@ -10,7 +10,7 @@ const sectionOrder = [
 ] as const
 
 const heroAlt =
-  'Nanami sitting in a dark room and looking directly at the camera.'
+  'Nanami, a black cat, sitting in a dark room and looking directly at the camera.'
 
 function collectRuntimeFailures(page: Page) {
   const failures: string[] = []
@@ -83,10 +83,10 @@ test.describe('desktop museum', () => {
     await waitForImage(page.getByRole('img', { name: heroAlt }))
 
     await expect(page.getByRole('heading', { name: 'ONE BLACK CAT. MANY MOODS.' })).toBeAttached()
-    await expect(page.getByRole('heading', { name: 'She runs the house.' })).toBeAttached()
-    await expect(page.getByText('RIGHT-ANGLE TAIL', { exact: true })).toBeAttached()
-    await expect(page.getByRole('heading', { name: 'MOOD ARCHIVE' })).toBeAttached()
-    await expect(page.getByRole('heading', { name: 'Explore Nanami’s living archive.' })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'He runs the house.' })).toBeAttached()
+    await expect(page.getByText('Right-angle tail tip', { exact: true })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'Mood Archive' })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'His story is still unfolding.' })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'Nanami is probably watching you.' })).toBeAttached()
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
@@ -96,7 +96,7 @@ test.describe('desktop museum', () => {
 
   test('keyboard navigation scrolls below the fixed header and updates the hash', async ({ page }) => {
     await page.goto('/')
-    const link = page.getByRole('link', { name: 'Field notes' })
+    const link = page.getByRole('link', { name: 'Field Notes' })
     await link.focus()
     await expect(link).toBeFocused()
     await page.keyboard.press('Enter')
@@ -139,18 +139,20 @@ test.describe('desktop museum', () => {
     await page.locator('#mood-archive').scrollIntoViewIfNeeded()
 
     const cards = page.locator('.archive-card')
-    await expect(cards).toHaveCount(19)
+    await expect(cards).toHaveCount(22)
     const firstThumbnail = cards.first().locator('img')
     await waitForImage(firstThumbnail)
     expect(await firstThumbnail.evaluate((image) => (image as HTMLImageElement).currentSrc)).toMatch(/-640\.webp$/)
     expect(archiveRequests.some((url) => /-1600\.webp$/.test(url))).toBe(false)
 
     await page.getByRole('button', { name: 'Photos', exact: true }).click()
-    await expect(cards).toHaveCount(13)
+    await expect(cards).toHaveCount(16)
     await page.getByRole('button', { name: 'Memes', exact: true }).click()
     await expect(cards).toHaveCount(6)
+    await page.getByRole('button', { name: 'Portraits', exact: true }).click()
+    await expect(cards).toHaveCount(3)
     await page.getByRole('button', { name: 'All', exact: true }).click()
-    await expect(cards).toHaveCount(19)
+    await expect(cards).toHaveCount(22)
 
     const opener = cards.first()
     await opener.focus()

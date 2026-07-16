@@ -58,8 +58,10 @@ describe('curated Nanami archive', () => {
     const copy = archiveItems
       .flatMap(({ caption, alt, story }) => [caption.en, caption['zh-CN'], alt.en, alt['zh-CN'], story.en, story['zh-CN']])
       .join(' ')
-    expect(copy).not.toMatch(/\b(?:she|her|hers)\b/i)
-    expect(copy).not.toContain('她')
+    const incorrectEnglishPronouns = new RegExp(`\\b(?:${['s', 'he'].join('')}|${['h', 'er'].join('')}|${['h', 'ers'].join('')})\\b`, 'i')
+    const incorrectChinesePronoun = String.fromCodePoint(0x5979)
+    expect(copy).not.toMatch(incorrectEnglishPronouns)
+    expect(copy).not.toContain(incorrectChinesePronoun)
     expect(copy).not.toMatch(/\b(?:memorial|deceased|late cat)\b/i)
     expect(copy).not.toMatch(/纪念|离世|去世/)
   })

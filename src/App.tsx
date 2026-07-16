@@ -6,9 +6,12 @@ import { MoodArchive } from './components/MoodArchive'
 import { Navigation } from './components/Navigation'
 import { Profile } from './components/Profile'
 import { useReducedExperience } from './hooks/useReducedExperience'
+import { useLocale } from './i18n/LocaleProvider'
 
 export function App() {
   const staticExperience = useReducedExperience()
+  const { copy } = useLocale()
+  const [heroLead, heroFollow] = copy.hero.title.split('\n')
 
   return (
     <main className="min-h-screen overflow-x-clip bg-obsidian text-bone">
@@ -23,9 +26,10 @@ export function App() {
           <HeroPortrait />
         </div>
         <div className="hero-mobile-copy">
-          <h1 id="museum-title">ONE BLACK CAT.<br />MANY MOODS.</h1>
-          <p aria-hidden="true">
-            <span>ARCHIVE INDEX:</span> NNM_000001
+          <h1 id="museum-title">{heroLead}<br />{heroFollow}</h1>
+          <p className="hero-mobile-copy__index">
+            <span>{copy.hero.archiveIndex}</span> NNM_000001
+            <span className="hero-mobile-copy__disclosure">{copy.hero.disclosure}</span>
           </p>
         </div>
       </section>
