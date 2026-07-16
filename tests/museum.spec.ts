@@ -132,6 +132,21 @@ test('keeps both locales free of runtime failures, overlays, and legacy 3D', asy
   expect(failures).toEqual([])
 })
 
+test('opens a Living Archive directory collection and focuses the filtered archive', async ({ page }) => {
+  await page.goto('/#living-archive')
+  const directory = page.locator('#living-archive')
+  await directory.scrollIntoViewIfNeeded()
+
+  await directory.getByRole('link', { name: 'View 6 memes' }).click()
+
+  const archive = page.locator('#mood-archive')
+  await expect(page).toHaveURL(/\?collection=memes#mood-archive$/)
+  await expect(page.getByRole('button', { name: 'Memes', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.archive-card')).toHaveCount(6)
+  await expect(archive).toBeFocused()
+  await expect(archive).toBeInViewport()
+})
+
 test.describe('desktop museum', () => {
   test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'desktop-only coverage')
@@ -242,7 +257,7 @@ test.describe('desktop museum', () => {
     const firstThumbnail = cards.first().locator('img')
     await waitForImage(firstThumbnail)
     expect(await firstThumbnail.evaluate((image) => (image as HTMLImageElement).currentSrc)).toMatch(/-640\.webp$/)
-    expect(archiveRequests.some((url) => /-1600\.webp$/.test(url))).toBe(false)
+    expect(archiveRequests.filter((url) => /-1600\.webp$/.test(url))).toEqual([])
 
     await page.getByRole('button', { name: 'Photos', exact: true }).click()
     await expect(cards).toHaveCount(16)
@@ -305,22 +320,51 @@ test.describe('desktop museum', () => {
     expect(modelRequests).toEqual([])
   })
 
-  test('captures six desktop section review artifacts', async ({ page }, testInfo: TestInfo) => {
+  test('captures the complete bilingual desktop and mobile section matrix', async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name !== 'desktop')
-    await page.goto('/')
-    await waitForImage(page.getByRole('img', { name: heroAlt }))
-    await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; }' })
+    test.setTimeout(120_000)
+    await page.addInitScript(() => { history.scrollRestoration = 'manual' })
+    const viewports = [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+      { width: 320, height: 700 },
+    ] as const
+    const locales = [
+      { key: 'en', alt: heroAlt },
+      { key: 'zh-CN', alt: '黑猫七海坐在昏暗的房间里，直接看向镜头。' },
+    ] as const
 
-    for (const [index, id] of sectionOrder.entries()) {
-      const section = page.locator(`#${id}`)
-      await section.scrollIntoViewIfNeeded()
-      await settleFrames(page, 2)
-      await page.screenshot({
-        path: testInfo.outputPath(
-          `section-${String(index + 1).padStart(2, '0')}-${id}.png`,
-        ),
-        animations: 'disabled',
-      })
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport)
+      for (const locale of locales) {
+        await page.goto('/')
+        await page.evaluate((value) => localStorage.setItem('nanami-locale', value), locale.key)
+        await page.reload()
+        const heroImage = page.getByRole('img', { name: locale.alt })
+        await waitForImage(heroImage)
+        await heroImage.evaluate((node) => (node as HTMLImageElement).decode())
+        await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto' })
+        await settleFrames(page, 10)
+
+        for (const [index, id] of sectionOrder.entries()) {
+          const section = page.locator(`#${id}`)
+          for (const reveal of await section.locator('[data-reveal="animated"]').all()) {
+            await reveal.scrollIntoViewIfNeeded()
+            await expect.poll(() => reveal.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0.99)
+          }
+          await section.evaluate((node) => node.scrollIntoView({ block: 'start' }))
+          const expectedTop = id === 'hero' ? 0 : 88
+          await expect.poll(() => section.evaluate((node) => Math.abs(node.getBoundingClientRect().top))).toBeGreaterThanOrEqual(expectedTop - 1)
+          await expect.poll(() => section.evaluate((node) => Math.abs(node.getBoundingClientRect().top))).toBeLessThanOrEqual(expectedTop + 1)
+          await settleFrames(page, 2)
+          await page.screenshot({
+            path: testInfo.outputPath(
+              `matrix-${viewport.width}x${viewport.height}-${locale.key}-${String(index + 1).padStart(2, '0')}-${id}.png`,
+            ),
+            animations: 'disabled',
+          })
+        }
+      }
     }
   })
 })
@@ -357,9 +401,17 @@ test.describe('mobile safety', () => {
     await expect(page.locator('#mood-archive')).toBeInViewport()
 
     await menu.tap()
-    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
-    await page.keyboard.press('Escape')
+    const close = dialog.getByRole('button', { name: 'Close' })
+    const english = dialog.getByRole('button', { name: 'English' })
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
+    await expect(close).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(english).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(close).toBeFocused()
+    await close.tap()
     await expect(dialog).toBeHidden()
+    await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')
     await expect(menu).toBeFocused()
   })
 
@@ -385,14 +437,26 @@ test.describe('mobile safety', () => {
   })
 
   test('shows localized viewer metadata and returns focus after touch close', async ({ page }) => {
-    await page.goto('/?collection=portraits#mood-archive')
+    await page.goto('/?collection=photos#mood-archive')
     await page.locator('#mood-archive').scrollIntoViewIfNeeded()
-    const opener = page.locator('.archive-card').first()
+    const datedOpener = page.getByRole('button', { name: /View Paws out, afternoon paused\./i })
+    await datedOpener.tap()
+    const datedDialog = page.getByRole('dialog', { name: 'Paws out, afternoon paused.' })
+    await expect(datedDialog.getByText('June 19, 2026', { exact: true })).toBeVisible()
+    await expect(datedDialog.getByText('A long, loose stretch turns the sofa into a quiet resting place.', { exact: true })).toBeVisible()
+    await expect(datedDialog.getByText('Location', { exact: true })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(datedOpener).toBeFocused()
+
+    const opener = page.getByRole('button', { name: /View A sun-warmed pause\./i })
     await opener.tap()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('Date', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Date not recorded', { exact: true })).toBeVisible()
     await expect(dialog.getByText('Story', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Warm light settles over a slow afternoon rest.', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Location', { exact: true })).toHaveCount(0)
     await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
     await dialog.getByRole('button', { name: 'Close' }).tap()
     await expect(dialog).toBeHidden()
@@ -401,12 +465,13 @@ test.describe('mobile safety', () => {
     await page.getByRole('button', { name: 'Menu' }).tap()
     await page.getByRole('dialog', { name: 'Museum navigation' }).getByRole('button', { name: '中文' }).tap()
     await page.keyboard.press('Escape')
-    await opener.tap()
+    const localizedOpener = page.locator('.archive-card').first()
+    await localizedOpener.tap()
     const localizedDialog = page.getByRole('dialog')
     await expect(localizedDialog.getByText('日期', { exact: true })).toBeVisible()
     await expect(localizedDialog.getByText('故事', { exact: true })).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(opener).toBeFocused()
+    await expect(localizedOpener).toBeFocused()
   })
 
   test('keeps 320px bilingual layout, controls, and reveals release-safe', async ({ page }, testInfo) => {
@@ -436,6 +501,7 @@ test.describe('mobile safety', () => {
   })
 
   test('loads, scrolls, navigates, filters, and avoids legacy 3D', async ({ page }, testInfo) => {
+    const failures = collectRuntimeFailures(page)
     const modelRequests: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/models/')) modelRequests.push(request.url())
@@ -473,6 +539,8 @@ test.describe('mobile safety', () => {
       await page.locator(`#${id}`).scrollIntoViewIfNeeded()
       await expect(page.locator(`#${id}`)).toBeVisible()
     }
+    await expectVisibleControlsMeetTouchTarget(page)
+    expect(failures).toEqual([])
     await page.screenshot({
       path: testInfo.outputPath('mobile-full-page.png'),
       fullPage: true,
