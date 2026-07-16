@@ -4,17 +4,17 @@ import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import type { ArchiveItem } from '../src/archive/types'
+import { validateArchive } from '../src/archive/validate'
 import { ArchiveViewer } from '../src/components/ArchiveViewer'
 import { MoodArchive } from '../src/components/MoodArchive'
 
-const items = [
+const items = validateArchive([
   {
     id: 'window-watch',
     type: 'photo',
     collections: ['photos', 'portraits'],
-    src640: '/archive/window-watch-640.webp',
-    src1600: '/archive/window-watch-1600.webp',
+    src640: '/archive/photos/window-watch-640.webp',
+    src1600: '/archive/photos/window-watch-1600.webp',
     caption: { en: 'Window watch.', 'zh-CN': '窗边巡视。' },
     alt: { en: 'Nanami watching the street from a window', 'zh-CN': '七海在窗边看街道。' },
     story: { en: 'A quiet watch.', 'zh-CN': '安静地巡视。' },
@@ -27,8 +27,8 @@ const items = [
     id: 'door-inspector',
     type: 'meme',
     collections: ['memes'],
-    src640: '/archive/door-inspector-640.webp',
-    src1600: '/archive/door-inspector-1600.webp',
+    src640: '/archive/memes/door-inspector-640.webp',
+    src1600: '/archive/memes/door-inspector-1600.webp',
     caption: { en: 'No closed doors.', 'zh-CN': '不许关门。' },
     alt: { en: 'Nanami inspecting a closed door', 'zh-CN': '七海正在检查一扇关上的门。' },
     story: { en: 'Every door is inspected.', 'zh-CN': '每扇门都要检查。' },
@@ -36,7 +36,7 @@ const items = [
     featured: false,
     order: 2,
   },
-] as const satisfies readonly ArchiveItem[]
+])
 
 function renderArchive() {
   return render(<MoodArchive items={items} staticExperience />)
@@ -80,17 +80,17 @@ describe('Mood archive viewer', () => {
     renderArchive()
 
     const cardImage = screen.getByAltText(items[0].alt.en)
-    expect(cardImage).toHaveAttribute('src', '/archive/window-watch-640.webp')
+    expect(cardImage).toHaveAttribute('src', '/archive/photos/window-watch-640.webp')
     expect(cardImage).toHaveAttribute(
       'srcset',
-      '/archive/window-watch-640.webp 640w, /archive/window-watch-1600.webp 1600w',
+      '/archive/photos/window-watch-640.webp 640w, /archive/photos/window-watch-1600.webp 1600w',
     )
     expect(cardImage).toHaveAttribute('sizes', expect.stringContaining('320px'))
 
     fireEvent.click(screen.getByRole('button', { name: /view window watch/i }))
     expect(within(screen.getByRole('dialog')).getByAltText(items[0].alt.en)).toHaveAttribute(
       'src',
-      '/archive/window-watch-1600.webp',
+      '/archive/photos/window-watch-1600.webp',
     )
   })
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import {
   archiveFilters,
@@ -9,7 +9,7 @@ import {
   representativeItem,
 } from '../src/archive/collections'
 import { archiveItems } from '../src/archive/items'
-import type { ArchiveItemInput } from '../src/archive/types'
+import type { ArchiveCollection, ArchiveItemInput } from '../src/archive/types'
 import { validateArchive } from '../src/archive/validate'
 
 const localized = (en: string, zhCN = '七海正看着窗外。') => ({ en, 'zh-CN': zhCN })
@@ -122,6 +122,27 @@ describe('validateArchive', () => {
   })
 
   it.each([
+    ['photo in the meme directory', validPhoto({
+      src640: '/archive/memes/nanami-window-watch-640.webp',
+      src1600: '/archive/memes/nanami-window-watch-1600.webp',
+    })],
+    ['meme in the photo directory', validPhoto({
+      id: 'nanami-serious-meme', type: 'meme', collections: ['memes'],
+      src640: '/archive/photos/nanami-serious-meme-640.webp',
+      src1600: '/archive/photos/nanami-serious-meme-1600.webp',
+    })],
+  ] as const)('binds source directories to item type: %s', (_name, item) => {
+    expect(() => validateArchive([item])).toThrow(/source.*type/i)
+  })
+
+  it('binds both responsive source basenames to the item ID', () => {
+    expect(() => validateArchive([validPhoto({
+      src640: '/archive/photos/a-different-cat-640.webp',
+      src1600: '/archive/photos/a-different-cat-1600.webp',
+    })])).toThrow(/source.*id/i)
+  })
+
+  it.each([
     ['caption', { caption: localized(' ') }, /caption.*en/i],
     ['caption zh-CN', { caption: localized('Caption', ' ') }, /caption.*zh-CN/i],
     ['alt', { alt: localized('') }, /alt.*en/i],
@@ -184,10 +205,16 @@ describe('validateArchive', () => {
 
 describe('archive collection helpers', () => {
   const items = validateArchive([
-    validPhoto({ id: 'plain-photo', collections: ['photos'], featured: false, order: 1 }),
+    validPhoto({
+      id: 'plain-photo', collections: ['photos'], featured: false, order: 1,
+      src640: '/archive/photos/plain-photo-640.webp',
+      src1600: '/archive/photos/plain-photo-1600.webp',
+    }),
     validPhoto({
       id: 'featured-portrait',
       collections: ['photos', 'portraits'],
+      src640: '/archive/photos/featured-portrait-640.webp',
+      src1600: '/archive/photos/featured-portrait-1600.webp',
       featured: true,
       captureDate: '2024-02-29',
       order: 2,
@@ -229,10 +256,10 @@ describe('archive collection helpers', () => {
   })
 
   it('selects the first featured representative, then the first item, then undefined', () => {
+    expectTypeOf(representativeItem).parameter(1).toEqualTypeOf<ArchiveCollection>()
     expect(representativeItem(items, 'photos')?.id).toBe('featured-portrait')
     expect(representativeItem(items, 'memes')?.id).toBe('first-meme')
     expect(representativeItem(items, 'portraits')?.id).toBe('featured-portrait')
-    expect(representativeItem(items, 'all')?.id).toBe('featured-portrait')
     expect(representativeItem([], 'photos')).toBeUndefined()
   })
 })

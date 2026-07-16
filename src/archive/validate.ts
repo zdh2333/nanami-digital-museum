@@ -89,8 +89,19 @@ export function validateArchive(items: readonly ArchiveItemInput[]): readonly Ar
     if (!isSafeArchivePath(item.src1600, '-1600.webp')) {
       throw new Error(`Archive item "${item.id}" must use a safe 1600 public /archive/ path`)
     }
+    const sourceDirectory = item.type === 'photo' ? 'photos' : 'memes'
+    const expectedDirectory = `/archive/${sourceDirectory}/`
+    if (!item.src640.startsWith(expectedDirectory) || !item.src1600.startsWith(expectedDirectory)) {
+      throw new Error(`Archive item "${item.id}" source paths must match its type`)
+    }
     if (item.src640.slice(0, -'-640.webp'.length) !== item.src1600.slice(0, -'-1600.webp'.length)) {
       throw new Error(`Archive item "${item.id}" must use a matching responsive source pair`)
+    }
+    if (
+      item.src640 !== `${expectedDirectory}${item.id}-640.webp` ||
+      item.src1600 !== `${expectedDirectory}${item.id}-1600.webp`
+    ) {
+      throw new Error(`Archive item "${item.id}" source paths must match its ID`)
     }
 
     validateLocalizedText(item.caption, `Archive item "${item.id}" caption`)

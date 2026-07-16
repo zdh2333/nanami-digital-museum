@@ -1,4 +1,4 @@
-import type { ArchiveFilter, ArchiveItem } from './types'
+import type { ArchiveCollection, ArchiveFilter, ArchiveItem } from './types'
 
 export const archiveFilters = Object.freeze([
   'all', 'photos', 'memes', 'portraits',
@@ -36,7 +36,7 @@ export function latestCaptureDate(items: readonly ArchiveItem[]): string | undef
 
 export function representativeItem(
   items: readonly ArchiveItem[],
-  collection: ArchiveFilter,
+  collection: ArchiveCollection,
 ): ArchiveItem | undefined {
   const selected = filterArchive(items, collection)
   return selected.find(({ featured }) => featured) ?? selected[0]
