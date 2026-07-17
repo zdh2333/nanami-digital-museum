@@ -1,5 +1,6 @@
 import { Closing } from './components/Closing'
 import { FieldNotes } from './components/FieldNotes'
+import { Guestbook } from './components/Guestbook'
 import { HeroPortrait } from './components/HeroPortrait'
 import { LivingArchive } from './components/LivingArchive'
 import { MoodArchive } from './components/MoodArchive'
@@ -40,6 +41,7 @@ export function App() {
         <FieldNotes staticExperience={staticExperience} />
         <MoodArchive staticExperience={staticExperience} />
         <LivingArchive staticExperience={staticExperience} />
+        <Guestbook staticExperience={staticExperience} />
         <Closing staticExperience={staticExperience} />
       </main>
     </>

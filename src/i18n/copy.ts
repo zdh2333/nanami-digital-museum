@@ -49,6 +49,7 @@ export interface MuseumCopy {
     notes: string
     archive: string
     timeline: string
+    guestbook: string
     menu: string
     close: string
     language: string
@@ -127,6 +128,33 @@ export interface MuseumCopy {
       portraits: string
     }
   }
+  guestbook: {
+    eyebrow: string
+    title: string
+    summary: string
+    formTitle: string
+    nickname: string
+    message: string
+    messagePlaceholder: string
+    emojiLabel: string
+    photo: string
+    photoHint: string
+    photoSafety: string
+    photoRemove: string
+    submit: string
+    submitting: string
+    empty: string
+    loading: string
+    loadingMore: string
+    loadMore: string
+    pendingPhoto: string
+    photoPendingNotice: string
+    posted: string
+    verificationUnavailable: string
+    verificationRequired: string
+    formatReactionLabel: (emoji: string, active: boolean) => string
+    formatDate: (createdAt: number) => string
+  }
   closing: {
     eyebrow: string
     title: string
@@ -148,6 +176,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       notes: 'Field Notes',
       archive: 'Archive',
       timeline: 'Timeline',
+      guestbook: 'Guestbook',
       menu: 'Menu',
       close: 'Close',
       language: 'Language',
@@ -251,8 +280,37 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
         portraits: 'A closer look at his face and character.',
       },
     },
+    guestbook: {
+      eyebrow: 'Guestbook · 06',
+      title: 'Leave a pawprint.',
+      summary: 'A small note, an emoji, or a cat photo for Nanami’s growing guestbook.',
+      formTitle: 'Add to the guestbook',
+      nickname: 'Nickname',
+      message: 'Message',
+      messagePlaceholder: 'A note for Nanami…',
+      emojiLabel: 'Choose one mood stamp',
+      photo: 'Cat photo',
+      photoHint: 'One cat photo only · JPEG, PNG, or WebP · 5 MB max.',
+      photoSafety: 'Please share only a cat photo with no people or human faces. Photos appear after review.',
+      photoRemove: 'Remove photo',
+      submit: 'Leave a pawprint',
+      submitting: 'Placing pawprint…',
+      empty: 'No pawprints here yet.',
+      loading: 'Opening guestbook…',
+      loadingMore: 'Opening more pawprints…',
+      loadMore: 'Load more pawprints',
+      pendingPhoto: 'Photo pending review',
+      photoPendingNotice: 'Your photo is private while it waits for review.',
+      posted: 'Your pawprint is now in the guestbook.',
+      verificationUnavailable: 'Verification is unavailable. Please try again later.',
+      verificationRequired: 'Complete verification before posting.',
+      formatReactionLabel: (emoji, active) => `${active ? 'Remove' : 'Add'} ${emoji} reaction`,
+      formatDate: (createdAt) => new Intl.DateTimeFormat('en', {
+        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Tokyo',
+      }).format(new Date(createdAt)),
+    },
     closing: {
-      eyebrow: 'To Be Continued · 06',
+      eyebrow: 'To Be Continued · 07',
       title: 'Nanami is probably watching you.',
       returnLink: 'Return to his territory',
     },
@@ -264,6 +322,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       notes: '观察笔记',
       archive: '档案',
       timeline: '时间线',
+      guestbook: '留言簿',
       menu: '菜单',
       close: '关闭',
       language: '语言',
@@ -366,8 +425,37 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
         portraits: '近距离看看他的面孔与性格。',
       },
     },
+    guestbook: {
+      eyebrow: '留言簿 · 06',
+      title: '留下一枚猫爪印。',
+      summary: '给 Nanami 留一段话、一枚表情，或提交一张等待审核的猫咪照片。',
+      formTitle: '写下留言',
+      nickname: '昵称',
+      message: '留言',
+      messagePlaceholder: '想对 Nanami 说的话……',
+      emojiLabel: '选择一枚表情',
+      photo: '猫咪照片',
+      photoHint: '每条留言限一张 · JPEG、PNG 或 WebP · 最大 5 MB。',
+      photoSafety: '仅可上传猫咪照片，不要出现人物或人脸。照片审核通过后才会公开。',
+      photoRemove: '移除照片',
+      submit: '留下猫爪印',
+      submitting: '正在留下猫爪印……',
+      empty: '这里还没有猫爪印。',
+      loading: '正在打开留言簿……',
+      loadingMore: '正在打开更多猫爪印……',
+      loadMore: '加载更多猫爪印',
+      pendingPhoto: '照片等待审核',
+      photoPendingNotice: '你的照片正在审核中，暂不会公开显示。',
+      posted: '你的猫爪印已经留在留言簿里。',
+      verificationUnavailable: '验证暂时不可用，请稍后再试。',
+      verificationRequired: '请先完成验证，再发布留言。',
+      formatReactionLabel: (emoji, active) => `${active ? '取消' : '添加'} ${emoji} 反应`,
+      formatDate: (createdAt) => new Intl.DateTimeFormat('zh-CN', {
+        year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Tokyo',
+      }).format(new Date(createdAt)),
+    },
     closing: {
-      eyebrow: '未完待续 · 06',
+      eyebrow: '未完待续 · 07',
       title: 'Nanami 可能正在看着你。',
       returnLink: '回到他的领地',
     },

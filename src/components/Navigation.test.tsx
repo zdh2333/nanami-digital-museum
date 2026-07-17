@@ -51,6 +51,7 @@ describe('Navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Field Notes' })).toHaveAttribute('href', '#field-notes')
     expect(within(nav).getByRole('link', { name: 'Archive' })).toHaveAttribute('href', '#mood-archive')
     expect(within(nav).getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '#living-archive')
+    expect(within(nav).getByRole('link', { name: 'Guestbook' })).toHaveAttribute('href', '#guestbook')
     expect(within(nav).queryByRole('link', { name: /photos|memes|explore/i })).not.toBeInTheDocument()
 
     expect(within(nav).getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'false')
@@ -69,6 +70,7 @@ describe('Navigation', () => {
     expect(screen.getByRole('link', { name: '观察笔记' })).toHaveAttribute('href', '#field-notes')
     expect(screen.getByRole('link', { name: '档案' })).toHaveAttribute('href', '#mood-archive')
     expect(screen.getByRole('link', { name: '时间线' })).toHaveAttribute('href', '#living-archive')
+    expect(screen.getByRole('link', { name: '留言簿' })).toHaveAttribute('href', '#guestbook')
     expect(localStorage.getItem('nanami-locale')).toBe('zh-CN')
     expect(document.documentElement).toHaveAttribute('lang', 'zh-CN')
     expect(screen.getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'true')

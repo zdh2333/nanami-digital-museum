@@ -68,7 +68,7 @@ describe('Nanami Cat museum shell', () => {
     )
   })
 
-  it('presents the six museum sections in the approved narrative order', () => {
+  it('presents the seven museum sections in the approved narrative order', () => {
     const { container } = renderApp()
     const sections = Array.from(container.querySelectorAll('main > section'))
 
@@ -78,10 +78,11 @@ describe('Nanami Cat museum shell', () => {
       'field-notes',
       'mood-archive',
       'living-archive',
+      'guestbook',
       'closing',
     ])
     sections.forEach((section) => {
-      expect(section.querySelectorAll('h1, h2, h3')).toHaveLength(1)
+      expect(section.querySelectorAll('h1, h2')).toHaveLength(1)
       expect(section).toHaveClass('anchor-target')
     })
   })
