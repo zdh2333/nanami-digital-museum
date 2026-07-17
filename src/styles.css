@@ -1481,9 +1481,10 @@ a {
 
 .guestbook__emoji-row, .guestbook__reactions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .guestbook__emoji-button, .guestbook__reaction, .guestbook__photo-preview button, .guestbook__load-more, .guestbook__submit { min-height: 44px; border: 1px solid rgb(144 165 143 / 38%); background: transparent; cursor: pointer; }
-.guestbook__emoji-button { min-width: 44px; padding: 0.25rem; border-radius: 50%; color: var(--color-bone); font-size: 1.125rem; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; background: rgba(255, 255, 255, 0.1); }
-.guestbook__emoji-button:hover { background: rgba(255, 255, 255, 0.2); border-color: var(--color-ink); }
+.guestbook__emoji-button { min-width: 44px; padding: 0.25rem; border-radius: 50%; color: var(--color-bone); font-size: 1.125rem; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; background: rgba(255, 255, 255, 0.25); }
+.guestbook__emoji-button:hover { background: rgba(255, 255, 255, 0.35); border-color: var(--color-ink); }
 .guestbook__emoji-button[aria-pressed='true'] { border-color: var(--color-ink); background: rgb(144 165 143 / 24%); transform: rotate(-6deg) scale(1.06); }
+
 
 
 .guestbook__photo-field { display: grid; gap: 0.5rem; padding-top: 1.15rem; border-top: 1px solid rgb(144 165 143 / 20%); }
