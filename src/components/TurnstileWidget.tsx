@@ -24,7 +24,9 @@ declare global {
 
 const scriptId = 'nanami-turnstile-script'
 const scriptUrl = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-const compactViewportMaxWidth = 359
+// The guestbook's paper desk has horizontal padding and borders. Keep the
+// 300px normal widget out of its inner content width through 391px viewport.
+const compactViewportMaxWidth = 391
 let scriptLoadPromise: Promise<TurnstileApi> | undefined
 let scriptLoadError: Error | undefined
 

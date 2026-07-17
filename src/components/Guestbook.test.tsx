@@ -266,8 +266,8 @@ describe('Guestbook', () => {
     expect(document.querySelectorAll('#nanami-turnstile-script')).toHaveLength(1)
   })
 
-  it('uses Cloudflare compact Turnstile at 320px and clears the old token when resizing back to normal', async () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320, writable: true })
+  it('keeps Cloudflare Turnstile compact through the 375px guestbook boundary and clears the old token when resizing back to normal', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375, writable: true })
     const onToken = vi.fn()
     render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
 
@@ -276,7 +276,7 @@ describe('Guestbook', () => {
       size: 'compact',
     }))
 
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390, writable: true })
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 393, writable: true })
     await act(async () => window.dispatchEvent(new Event('resize')))
 
     await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(2))
