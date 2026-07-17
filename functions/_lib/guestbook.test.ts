@@ -270,16 +270,38 @@ describe('guestbook persistence helpers', () => {
     })).rejects.toThrow('Turnstile verification failed')
   })
 
-  it('accepts a configured hostname and action only when both match Siteverify', async () => {
+  it.each([
+    'nanamicat.com',
+    'www.nanamicat.com',
+    'nanami-digital-museum.pages.dev',
+  ])('accepts each explicit production hostname only when the action matches Siteverify', async (hostname) => {
     await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
-      expectedHostname: 'preview.nanamicat.pages.dev',
+      expectedHostnames: [
+        'nanamicat.com',
+        'www.nanamicat.com',
+        'nanami-digital-museum.pages.dev',
+      ],
       expectedAction: 'guestbook-write',
       fetchImplementation: async () => Response.json({
         success: true,
-        hostname: 'preview.nanamicat.pages.dev',
+        hostname,
         action: 'guestbook-write',
       }),
     })).resolves.toBeUndefined()
+  })
+
+  it('rejects a lookalike hostname outside the explicit allowlist', async () => {
+    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
+      expectedHostnames: [
+        'nanamicat.com',
+        'www.nanamicat.com',
+        'nanami-digital-museum.pages.dev',
+      ],
+      fetchImplementation: async () => Response.json({
+        success: true,
+        hostname: 'preview.nanamicat.com',
+      }),
+    })).rejects.toThrow('Turnstile verification failed')
   })
 
   it('uses a bound keyset cursor, a page size of 12, and public-only entries', async () => {

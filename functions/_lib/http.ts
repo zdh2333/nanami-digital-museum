@@ -4,6 +4,8 @@ import {
   GuestbookRateIdentityError,
   GuestbookRateLimitError,
   GuestbookTurnstileError,
+  NANAMI_TURNSTILE_HOSTNAMES,
+  isNanamiTurnstileHostnameSet,
   type GuestbookVisitor,
 } from './guestbook'
 import { GuestbookValidationError } from '../../src/guestbook/validation'
@@ -44,11 +46,19 @@ export function guestbookError(error: unknown, visitor?: GuestbookVisitor): Resp
 }
 
 export function turnstileOptions(env: {
-  TURNSTILE_EXPECTED_HOSTNAME?: string
+  TURNSTILE_EXPECTED_HOSTNAMES?: string
   TURNSTILE_EXPECTED_ACTION?: string
 }) {
+  const expectedHostnames = env.TURNSTILE_EXPECTED_HOSTNAMES === undefined
+    ? NANAMI_TURNSTILE_HOSTNAMES
+    : env.TURNSTILE_EXPECTED_HOSTNAMES.split(',').map((hostname) => hostname.trim())
+
+  if (!isNanamiTurnstileHostnameSet(expectedHostnames)) {
+    throw new Error('Turnstile hostname configuration is invalid')
+  }
+
   return {
-    expectedHostname: env.TURNSTILE_EXPECTED_HOSTNAME ?? 'nanamicat.com',
+    expectedHostnames,
     expectedAction: env.TURNSTILE_EXPECTED_ACTION ?? GUESTBOOK_TURNSTILE_ACTION,
   }
 }

@@ -6,6 +6,20 @@ import {
 
 export const GUESTBOOK_VISITOR_COOKIE = 'nanami_guestbook_visitor'
 
+export const NANAMI_TURNSTILE_HOSTNAMES = [
+  'nanamicat.com',
+  'www.nanamicat.com',
+  'nanami-digital-museum.pages.dev',
+] as const
+
+export function isNanamiTurnstileHostnameSet(hostnames: readonly string[]): boolean {
+  return hostnames.length === NANAMI_TURNSTILE_HOSTNAMES.length
+    && new Set(hostnames).size === NANAMI_TURNSTILE_HOSTNAMES.length
+    && hostnames.every((hostname) => (
+      (NANAMI_TURNSTILE_HOSTNAMES as readonly string[]).includes(hostname)
+    ))
+}
+
 export type GuestbookPhotoStatus = 'none' | 'pending' | 'approved' | 'rejected'
 export type GuestbookRateAction = 'entry' | 'reaction'
 
@@ -14,7 +28,7 @@ export interface GuestbookEnv {
   PHOTOS: R2Bucket
   IMAGE_SANITIZER: Fetcher
   TURNSTILE_SECRET_KEY: string
-  TURNSTILE_EXPECTED_HOSTNAME?: string
+  TURNSTILE_EXPECTED_HOSTNAMES?: string
   TURNSTILE_EXPECTED_ACTION?: string
   GUESTBOOK_HMAC_KEY: string
 }
@@ -584,7 +598,7 @@ export async function setGuestbookReaction(
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 export interface TurnstileVerificationOptions {
-  expectedHostname?: string
+  expectedHostnames?: readonly string[]
   expectedAction?: string
   fetchImplementation?: FetchImplementation
 }
@@ -604,7 +618,10 @@ export async function verifyTurnstile(
   const options = typeof configuration === 'function'
     ? { fetchImplementation: configuration }
     : configuration
-  const expectedHostname = options.expectedHostname ?? 'nanamicat.com'
+  const expectedHostnames = options.expectedHostnames ?? NANAMI_TURNSTILE_HOSTNAMES
+  if (!isNanamiTurnstileHostnameSet(expectedHostnames)) {
+    throw new GuestbookTurnstileError()
+  }
   const fetchImplementation = options.fetchImplementation ?? fetch
 
   let response: Response
@@ -630,7 +647,8 @@ export async function verifyTurnstile(
       || !('success' in payload)
       || !('hostname' in payload)
       || payload.success !== true
-      || payload.hostname !== expectedHostname
+      || typeof payload.hostname !== 'string'
+      || !expectedHostnames.includes(payload.hostname)
       || (options.expectedAction !== undefined && (!('action' in payload) || payload.action !== options.expectedAction))
     ) {
       throw new GuestbookTurnstileError()

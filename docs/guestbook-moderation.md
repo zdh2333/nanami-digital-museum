@@ -59,5 +59,11 @@ DELETE FROM guestbook_entries WHERE id = 'entry-id-to-delete';
 route-less image sanitizer Service Binding. The committed
 `.env.production` contains only the public Turnstile site key required by the
 Vite production build. It is safe to expose; it is not the verification
-secret. For local Pages development, keep real credentials in an untracked
-`.dev.vars` file and use the test credentials documented in `.dev.vars.example`.
+secret. Its server-side hostname allowlist is deliberately exact:
+`nanamicat.com`, `www.nanamicat.com`, and
+`nanami-digital-museum.pages.dev`; do not add a wildcard.
+
+For local Pages development, create an untracked `.dev.vars` from the tracked
+`.dev.vars.example`. It contains only Cloudflare's test Turnstile values and a
+placeholder local HMAC value. Replace only the HMAC placeholder locally; do
+not copy production credentials into that file.

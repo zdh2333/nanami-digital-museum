@@ -23,5 +23,5 @@ service = "nanami-image-sanitizer"
 # This is a public Turnstile site key, intentionally committed so the Vite
 # production build can render the widget. It is not a server credential.
 VITE_TURNSTILE_SITE_KEY = "0x4AAAAAAD34l0QAtjJvwGlX"
-TURNSTILE_EXPECTED_HOSTNAME = "nanamicat.com"
+TURNSTILE_EXPECTED_HOSTNAMES = "nanamicat.com,www.nanamicat.com,nanami-digital-museum.pages.dev"
 TURNSTILE_EXPECTED_ACTION = "guestbook-write"

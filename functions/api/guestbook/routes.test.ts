@@ -160,7 +160,7 @@ function makeEnv(options: {
     PHOTOS: (options.photos ?? { get: vi.fn(), put: vi.fn(), delete: vi.fn() }) as unknown as R2Bucket,
     IMAGE_SANITIZER: (options.sanitizer ?? { fetch: vi.fn() }) as unknown as Fetcher,
     TURNSTILE_SECRET_KEY: 'turnstile-secret',
-    TURNSTILE_EXPECTED_HOSTNAME: 'nanamicat.com',
+    TURNSTILE_EXPECTED_HOSTNAMES: 'nanamicat.com,www.nanamicat.com,nanami-digital-museum.pages.dev',
     TURNSTILE_EXPECTED_ACTION: 'guestbook-write',
     GUESTBOOK_HMAC_KEY: 'guestbook-hmac-secret',
   }
