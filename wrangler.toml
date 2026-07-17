@@ -1,0 +1,23 @@
+# This Pages configuration is intentionally resource-safe: Task 7 replaces the
+# D1 placeholder with the real ID after the account resource exists.
+name = "nanami-digital-museum"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-07-17"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nanami-guestbook"
+database_id = "REPLACE_WITH_NANAMI_GUESTBOOK_D1_DATABASE_ID"
+migrations_dir = "./migrations"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "nanami-guestbook-photos"
+
+[[services]]
+binding = "IMAGE_SANITIZER"
+service = "nanami-image-sanitizer"
+
+[vars]
+TURNSTILE_EXPECTED_HOSTNAME = "nanamicat.com"
+TURNSTILE_EXPECTED_ACTION = "guestbook-write"
