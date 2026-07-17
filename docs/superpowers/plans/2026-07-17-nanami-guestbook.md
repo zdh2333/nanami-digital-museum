@@ -362,73 +362,7 @@ git add src/components/Guestbook.tsx src/components/Guestbook.test.tsx src/compo
 git commit -m "feat: add Nanami real-photo guestbook"
 ```
 
-### Task 7: Add local Pages integration and E2E coverage
-
-**Files:**
-- Modify: `playwright.config.ts`, `tests/museum.spec.ts`, `package.json`
-- Create: `tests/guestbook.spec.ts`, `.dev.vars.example`
-
-- [ ] **Step 1: Write a failing E2E privacy test**
-
-```ts
-test('keeps a submitted cat photo private until approval', async ({ page }) => {
-  await page.goto('/#guestbook')
-  await page.getByLabel('Nickname').fill('Momo')
-  await page.getByLabel('Message').fill('Hello Nanami')
-  await page.getByLabel('Cat photo').setInputFiles('public/archive/photos/nanami-photo-017-640.webp')
-  await page.getByRole('button', { name: 'Leave a pawprint' }).click()
-  await expect(page.getByText('Photo pending review')).toBeVisible()
-  await expect(page.locator('[data-guestbook-photo="pending"]')).toHaveCount(0)
-})
-```
-
-- [ ] **Step 2: Verify red**
-
-Run: `npm run test:e2e -- tests/guestbook.spec.ts`  
-Expected: FAIL until local Pages Functions and the Guestbook UI run together.
-
-- [ ] **Step 3: Add local Pages setup**
-
-Add `dev:pages` as `npm run build && wrangler pages dev dist --port 4173`. Configure guestbook E2E to use local D1/R2 simulation and test-only Turnstile credentials. Add `.dev.vars.example` only:
-
-```dotenv
-TURNSTILE_SITE_KEY="1x00000000000000000000AA"
-TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
-GUESTBOOK_HMAC_KEY="replace-with-local-only-value"
-```
-
-Never create or commit `.dev.vars`.
-
-- [ ] **Step 4: Cover the release behavior**
-
-Add tests for EN/ZH, 1440×900/390×844/320×700, keyboard form order, unavailable Turnstile, 44px targets, text + selected emoji post, rejected upload, private pending image, approved local D1 fixture, reaction add/remove, pagination, preserved draft after error, mobile menu Guestbook navigation, reduced motion, no overflow, and no console/page/request failure.
-
-Capture the Guestbook in the 36-screen museum matrix and inspect all images. Every decorative image must map to an existing approved Nanami asset with no human face.
-
-- [ ] **Step 5: Run the full local gate and commit**
-
-Run:
-
-```bash
-npm test
-npm run archive:build
-npm run share:build
-npm run audit:assets
-npm run build
-npx tsc -p tsconfig.functions.json --noEmit
-npm run test:e2e
-rg -n -i '\\b(she|her|hers)\\b|她|memorial|deceased' src tests functions workers index.html public || true
-find public dist -type f \( -iname '*.glb' -o -iname '*.gltf' \)
-```
-
-Expected: all checks pass; the pronoun scan has only test assertions; no GLB/GLTF exists.
-
-```bash
-git add playwright.config.ts tests/guestbook.spec.ts tests/museum.spec.ts package.json .dev.vars.example
-git commit -m "test: cover Nanami guestbook release"
-```
-
-### Task 8: Provision Cloudflare resources and write moderation guide
+### Task 7: Provision Cloudflare resources and write moderation guide
 
 **Files:**
 - Create: `wrangler.toml` from downloaded Pages configuration
@@ -494,13 +428,79 @@ git add wrangler.toml docs/guestbook-moderation.md .gitignore
 git commit -m "docs: configure Nanami guestbook operations"
 ```
 
+### Task 8: Add local Pages integration and E2E coverage
+
+**Files:**
+- Modify: `playwright.config.ts`, `tests/museum.spec.ts`, `package.json`
+- Create: `tests/guestbook.spec.ts`, `.dev.vars.example`
+
+- [ ] **Step 1: Write a failing E2E privacy test**
+
+```ts
+test('keeps a submitted cat photo private until approval', async ({ page }) => {
+  await page.goto('/#guestbook')
+  await page.getByLabel('Nickname').fill('Momo')
+  await page.getByLabel('Message').fill('Hello Nanami')
+  await page.getByLabel('Cat photo').setInputFiles('public/archive/photos/nanami-photo-017-640.webp')
+  await page.getByRole('button', { name: 'Leave a pawprint' }).click()
+  await expect(page.getByText('Photo pending review')).toBeVisible()
+  await expect(page.locator('[data-guestbook-photo="pending"]')).toHaveCount(0)
+})
+```
+
+- [ ] **Step 2: Verify red**
+
+Run: `npm run test:e2e -- tests/guestbook.spec.ts`
+Expected: FAIL until local Pages Functions and the Guestbook UI run together.
+
+- [ ] **Step 3: Add local Pages setup**
+
+Add `dev:pages` as `npm run build && wrangler pages dev dist --port 4173`. Use the Task 7 bindings with local D1/R2 simulation and test-only Turnstile credentials. Add `.dev.vars.example` only:
+
+```dotenv
+TURNSTILE_SITE_KEY="1x00000000000000000000AA"
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
+GUESTBOOK_HMAC_KEY="replace-with-local-only-value"
+```
+
+Never create or commit `.dev.vars`.
+
+- [ ] **Step 4: Cover the release behavior**
+
+Add tests for EN/ZH, 1440×900/390×844/320×700, keyboard form order, unavailable Turnstile, 44px targets, text + selected emoji post, rejected upload, private pending image, approved local D1 fixture, reaction add/remove, pagination, preserved draft after error, mobile menu Guestbook navigation, reduced motion, no overflow, and no console/page/request failure.
+
+Capture the Guestbook in the 36-screen museum matrix and inspect all images. Every decorative image must map to an existing approved Nanami asset with no human face.
+
+- [ ] **Step 5: Run the full local gate and commit**
+
+Run:
+
+```bash
+npm test
+npm run archive:build
+npm run share:build
+npm run audit:assets
+npm run build
+npx tsc -p tsconfig.functions.json --noEmit
+npm run test:e2e
+rg -n -i '\\b(she|her|hers)\\b|她|memorial|deceased' src tests functions workers index.html public || true
+find public dist -type f \( -iname '*.glb' -o -iname '*.gltf' \)
+```
+
+Expected: all checks pass; the pronoun scan has only test assertions; no GLB/GLTF exists.
+
+```bash
+git add playwright.config.ts tests/guestbook.spec.ts tests/museum.spec.ts package.json .dev.vars.example
+git commit -m "test: cover Nanami guestbook release"
+```
+
 ### Task 9: Push, deploy, and verify production
 
 **Files:** No source changes expected.
 
 - [ ] **Step 1: Run the release gate and inspect the branch**
 
-Run Task 7’s full gate, `git diff --check`, `git status --short`, and manually inspect all final Guestbook/museum screenshots. Require a clean tree.
+Run Task 8’s full gate, `git diff --check`, `git status --short`, and manually inspect all final Guestbook/museum screenshots. Require a clean tree.
 
 - [ ] **Step 2: Push the verified release to GitHub**
 
