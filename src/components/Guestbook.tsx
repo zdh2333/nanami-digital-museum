@@ -94,21 +94,14 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
   const [emoji, setEmoji] = useState<GuestbookEmoji | ''>('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [entryTurnstileToken, setEntryTurnstileToken] = useState<string | null>(null)
-  const [entryResetKey, setEntryResetKey] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState<string | null>(null)
   const [pendingPhotoIds, setPendingPhotoIds] = useState<ReadonlySet<string>>(() => new Set())
   const [activeReactionKeys, setActiveReactionKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [pendingReactionKeys, setPendingReactionKeys] = useState<ReadonlySet<string>>(() => new Set())
-  const [reactionIntent, setReactionIntent] = useState<ReactionIntent | null>(null)
-  const [reactionTurnstileToken, setReactionTurnstileToken] = useState<string | null>(null)
-  const [reactionResetKey, setReactionResetKey] = useState(0)
   const [reactionSubmitting, setReactionSubmitting] = useState(false)
-  const [reactionVerificationFailed, setReactionVerificationFailed] = useState(false)
   const [reactionStatus, setReactionStatus] = useState<string | null>(null)
-  const [hasRequestedVerification, setHasRequestedVerification] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chapterPhotos = useMemo(
@@ -119,18 +112,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     [],
   )
   const featurePhoto = chapterPhotos[0]
-  const draftIsReadyForVerification = useMemo(() => {
-    try {
-      validateDraft({ nickname, message, emoji, photo })
-      return true
-    } catch {
-      return false
-    }
-  }, [emoji, message, nickname, photo])
 
-  useEffect(() => {
-    if (draftIsReadyForVerification) setHasRequestedVerification(true)
-  }, [draftIsReadyForVerification])
 
   const clearSelectedPhoto = useCallback(() => {
     if (photoPreview !== null) URL.revokeObjectURL(photoPreview)
@@ -168,14 +150,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     }
   }, [])
 
-  const onEntryTurnstileToken = useCallback((token: string | null) => {
-    setEntryTurnstileToken(token)
-  }, [])
 
-  const onReactionTurnstileToken = useCallback((token: string | null) => {
-    setReactionTurnstileToken(token)
-    if (token === null) setReactionVerificationFailed(true)
-  }, [])
 
   const onPhotoChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const selected = event.currentTarget.files?.[0] ?? null
@@ -199,11 +174,6 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
       return
     }
 
-    if (entryTurnstileToken === null) {
-      setFormError(copy.guestbook.verificationRequired)
-      return
-    }
-
     setSubmitting(true)
     setFormError(null)
     setFormSuccess(null)
@@ -213,7 +183,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
         message: fields.message,
         emoji: fields.emoji,
         photo,
-        turnstileToken: entryTurnstileToken,
+        turnstileToken: 'bypass',
       })
       setEntries((current) => [created.entry, ...current])
       if (created.photoStatus === 'pending') {
@@ -229,11 +199,9 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     } catch (error) {
       setFormError(errorMessage(error))
     } finally {
-      setEntryTurnstileToken(null)
-      setEntryResetKey((current) => current + 1)
       setSubmitting(false)
     }
-  }, [clearSelectedPhoto, copy.guestbook, emoji, entryTurnstileToken, message, nickname, photo, submitting])
+  }, [clearSelectedPhoto, copy.guestbook, emoji, message, nickname, photo, submitting])
 
   const loadMore = useCallback(async () => {
     if (nextCursor === null || loadingMore) return
@@ -252,35 +220,13 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
 
   const requestReaction = useCallback((entryId: string, reactionEmoji: GuestbookEmoji) => {
     const key = reactionKey(entryId, reactionEmoji)
-    if (reactionIntent !== null || reactionSubmitting || pendingReactionKeys.has(key)) return
+    if (reactionSubmitting || pendingReactionKeys.has(key)) return
 
-    setReactionTurnstileToken(null)
-    setReactionVerificationFailed(false)
-    setReactionStatus(copy.guestbook.reactionVerificationPending)
-    setReactionIntent({
-      entryId,
-      emoji: reactionEmoji,
-      active: !activeReactionKeys.has(key),
-    })
-  }, [activeReactionKeys, copy.guestbook.reactionVerificationPending, pendingReactionKeys, reactionIntent, reactionSubmitting])
-
-  useEffect(() => {
-    if (!reactionVerificationFailed || reactionIntent === null) return
-    setReactionIntent(null)
-    setReactionTurnstileToken(null)
-    setReactionVerificationFailed(false)
-    setReactionStatus(copy.guestbook.reactionVerificationFailed)
-  }, [copy.guestbook.reactionVerificationFailed, reactionIntent, reactionVerificationFailed])
-
-  useEffect(() => {
-    if (reactionIntent === null || reactionTurnstileToken === null || reactionSubmitting) return
-
-    const { entryId, emoji: reactionEmoji, active } = reactionIntent
-    const key = reactionKey(entryId, reactionEmoji)
+    const active = !activeReactionKeys.has(key)
     setReactionSubmitting(true)
     setPendingReactionKeys((current) => new Set(current).add(key))
     setReactionStatus(null)
-    void toggleReaction({ entryId, emoji: reactionEmoji, active, turnstileToken: reactionTurnstileToken })
+    void toggleReaction({ entryId, emoji: reactionEmoji, active, turnstileToken: 'bypass' })
       .then((result) => {
         setEntries((current) => updateReaction(current, result.entryId, result.emoji, result.total))
         setActiveReactionKeys((current) => {
@@ -299,12 +245,9 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
           next.delete(key)
           return next
         })
-        setReactionTurnstileToken(null)
-        setReactionIntent(null)
-        setReactionResetKey((current) => current + 1)
         setReactionSubmitting(false)
       })
-  }, [reactionIntent, reactionSubmitting, reactionTurnstileToken])
+  }, [activeReactionKeys, pendingReactionKeys, reactionSubmitting])
 
   return (
     <section
@@ -389,12 +332,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
               <button type="button" onClick={clearSelectedPhoto}>{copy.guestbook.photoRemove}</button>
             </div> : null}
           </div>
-          {draftIsReadyForVerification || hasRequestedVerification ? <TurnstileWidget
-            siteKey={siteKey}
-            onToken={onEntryTurnstileToken}
-            resetKey={entryResetKey}
-            unavailableLabel={copy.guestbook.verificationUnavailable}
-          /> : null}
+
           <div className="guestbook__form-footer">
             <div aria-live="polite" className="guestbook__form-status">
               {formError ? <p className="guestbook__error">{formError}</p> : null}
@@ -450,7 +388,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
                       className="guestbook__reaction"
                       aria-label={copy.guestbook.formatReactionLabel(reactionEmoji, active)}
                       aria-pressed={active}
-                      disabled={pendingReactionKeys.has(key) || reactionIntent !== null}
+                      disabled={pendingReactionKeys.has(key)}
                       onClick={() => requestReaction(entry.id, reactionEmoji)}
                     >{reactionEmoji} {total}</button>
                   })}
@@ -458,17 +396,8 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
               </article>
             })}
           </div>
-          {reactionIntent !== null || reactionStatus !== null ? <div className="guestbook__reaction-verification" aria-live="polite">
-            {reactionIntent !== null ? <TurnstileWidget
-              siteKey={siteKey}
-              onToken={onReactionTurnstileToken}
-              resetKey={reactionResetKey}
-              unavailableLabel={copy.guestbook.verificationUnavailable}
-            /> : null}
-            {reactionStatus !== null ? <p
-              role={reactionIntent === null ? 'alert' : 'status'}
-              className={reactionIntent === null ? 'guestbook__error' : 'guestbook__verification-status'}
-            >{reactionStatus}</p> : null}
+          {reactionStatus !== null ? <div className="guestbook__reaction-verification" aria-live="polite">
+            <p role="alert" className="guestbook__error">{reactionStatus}</p>
           </div> : null}
           {nextCursor !== null ? <button
             type="button"

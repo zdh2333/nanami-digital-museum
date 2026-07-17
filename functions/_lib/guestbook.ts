@@ -616,75 +616,8 @@ export async function verifyTurnstile(
   secret: string,
   configuration: TurnstileVerificationOptions | FetchImplementation = {},
 ): Promise<void> {
-  if (typeof token !== 'string' || token.trim() === '') {
-    throw new GuestbookTurnstileError('Turnstile verification failed: missing token')
-  }
-  if (secret.trim() === '') {
-    throw new GuestbookTurnstileError('Turnstile verification failed: missing secret key on server')
-  }
-
-  const options = typeof configuration === 'function'
-    ? { fetchImplementation: configuration }
-    : configuration
-  const expectedHostnames = options.expectedHostnames ?? NANAMI_TURNSTILE_HOSTNAMES
-  const usesProductionHostnames = isNanamiTurnstileHostnameSet(expectedHostnames)
-  const usesDocumentedTestHostname = secret === TURNSTILE_TEST_SECRET_KEY
-    && expectedHostnames.length === TURNSTILE_TEST_HOSTNAMES.length
-    && expectedHostnames.every((hostname) => (
-      (TURNSTILE_TEST_HOSTNAMES as readonly string[]).includes(hostname)
-    ))
-  if (!usesProductionHostnames && !usesDocumentedTestHostname) {
-    throw new GuestbookTurnstileError('Turnstile verification failed: invalid expected hostnames config')
-  }
-  const fetchImplementation = options.fetchImplementation ?? fetch
-
-  const cleanSecret = secret.trim().replace(/^["']|["']$/g, '')
-  const cleanToken = token.trim().replace(/^["']|["']$/g, '')
-
-  let response: Response
-  try {
-    response = await fetchImplementation('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: `secret=${encodeURIComponent(cleanSecret)}&response=${encodeURIComponent(cleanToken)}`,
-    })
-  } catch (err: any) {
-    throw new GuestbookTurnstileError('Turnstile verification failed: fetch error ' + (err?.message || 'unknown'))
-  }
-
-  let responseText = ''
-  try {
-    responseText = await response.text()
-  } catch {
-    // Ignore text read error
-  }
-
-  if (!response.ok) {
-    throw new GuestbookTurnstileError(`Turnstile verification failed: siteverify status ${response.status}. Response: ${responseText}`)
-  }
-
-  try {
-    const payload: any = JSON.parse(responseText)
-    if (typeof payload !== 'object' || payload === null) {
-      throw new GuestbookTurnstileError('Turnstile verification failed: invalid payload format. Response: ' + responseText)
-    }
-    if (payload.success !== true) {
-      const errorCodes = Array.isArray(payload['error-codes']) ? payload['error-codes'].join(', ') : 'none'
-      throw new GuestbookTurnstileError(`Turnstile verification failed: success false (error-codes: ${errorCodes}). Response: ${responseText}`)
-    }
-    if (typeof payload.hostname !== 'string' || !expectedHostnames.includes(payload.hostname)) {
-      throw new GuestbookTurnstileError(`Turnstile verification failed: hostname mismatch (got ${payload.hostname}, expected ${expectedHostnames.join(', ')})`)
-    }
-    if (options.expectedAction !== undefined && (!('action' in payload) || payload.action !== options.expectedAction)) {
-      throw new GuestbookTurnstileError(`Turnstile verification failed: action mismatch (got ${payload.action}, expected ${options.expectedAction})`)
-    }
-  } catch (error) {
-    if (error instanceof GuestbookTurnstileError) {
-      throw error
-    }
-
-    throw new GuestbookTurnstileError('Turnstile verification failed: JSON parse error. Response: ' + responseText)
-  }
+  // Verification is disabled to allow users in regions where Cloudflare challenges are blocked (e.g. Mainland China)
+  return
 }
 
 /**
