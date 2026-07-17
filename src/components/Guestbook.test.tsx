@@ -107,20 +107,33 @@ describe('Guestbook', () => {
     expect(screen.getByRole('button', { name: '🐾' })).toHaveClass('guestbook__emoji-button')
   })
 
-  it('loads the official Turnstile script only after its widget mounts and states unavailable configuration accessibly', async () => {
+  it('loads the official Turnstile script only after its widget mounts and stays unavailable after a failed script remount', async () => {
     Object.defineProperty(window, 'turnstile', { configurable: true, value: undefined })
     const onToken = vi.fn()
-    render(<TurnstileWidget siteKey="" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
+    const unavailable = render(<TurnstileWidget siteKey="" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
 
     expect(screen.getByText('Turnstile unavailable')).toHaveAttribute('role', 'status')
     expect(document.querySelector('#nanami-turnstile-script')).not.toBeInTheDocument()
+    unavailable.unmount()
 
-    const { unmount } = render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
-    await waitFor(() => expect(document.querySelector('#nanami-turnstile-script')).toHaveAttribute(
+    const firstMount = render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
+    const script = await waitFor(() => {
+      const element = document.querySelector<HTMLScriptElement>('#nanami-turnstile-script')
+      expect(element).not.toBeNull()
+      expect(element).toHaveAttribute(
       'src',
       'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
-    ))
-    unmount()
+      )
+      return element
+    })
+    if (script === null) throw new Error('Turnstile script was not appended')
+    fireEvent.error(script)
+    expect(await firstMount.findByText('Turnstile unavailable')).toHaveAttribute('role', 'status')
+    firstMount.unmount()
+
+    const remount = render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
+    expect(await remount.findByText('Turnstile unavailable')).toHaveAttribute('role', 'status')
+    expect(document.querySelectorAll('#nanami-turnstile-script')).toHaveLength(1)
   })
 
   it('offers each visible reaction as a labelled, toggleable control', async () => {

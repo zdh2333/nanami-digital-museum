@@ -6,11 +6,45 @@ const sectionOrder = [
   'field-notes',
   'mood-archive',
   'living-archive',
+  'guestbook',
   'closing',
 ] as const
 
 const heroAlt =
   'Nanami, a black cat, sitting in a dark room and looking directly at the camera.'
+
+const localGuestbookFixture = {
+  entries: [{
+    id: 'local-guestbook-pawprint',
+    nickname: 'Momo',
+    message: 'Hello from the Vite guestbook fixture.',
+    emoji: '🐾',
+    createdAt: 1_783_545_600_000,
+    photoUrl: null,
+    reactions: [{ emoji: '🖤', total: 2 }],
+  }],
+  nextCursor: null,
+}
+
+async function mockLocalGuestbookApi(page: Page) {
+  if (process.env.E2E_BASE_URL !== undefined) return
+
+  await page.route(/\/api\/guestbook(?:\?.*)?$/, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(localGuestbookFixture),
+      })
+      return
+    }
+
+    await route.fallback()
+  })
+}
+
+test.beforeEach(async ({ page }) => {
+  await mockLocalGuestbookApi(page)
+})
 
 function collectRuntimeFailures(page: Page) {
   const failures: string[] = []
@@ -19,6 +53,9 @@ function collectRuntimeFailures(page: Page) {
   })
   page.on('pageerror', (error) => failures.push(`page: ${error.message}`))
   page.on('requestfailed', (request) => {
+    // React development mode deliberately cancels its first guestbook fetch during
+    // the effect cleanup pass. It is not a browser/runtime failure.
+    if (request.url().includes('/api/guestbook') && request.failure()?.errorText === 'net::ERR_ABORTED') return
     failures.push(`request: ${request.url()} (${request.failure()?.errorText})`)
   })
   page.on('response', (response) => {
@@ -88,11 +125,11 @@ async function switchToChinese(page: Page) {
   await page.keyboard.press('Escape')
 }
 
-test('presents the six museum chapters in narrative order', async ({ page }) => {
+test('presents the seven museum chapters in narrative order', async ({ page }) => {
   await page.goto('/')
 
   const chapters = page.locator('[data-museum-section]')
-  await expect(chapters).toHaveCount(6)
+  await expect(chapters).toHaveCount(7)
   await expect(
     chapters.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute('data-museum-section')),
@@ -107,6 +144,14 @@ test('presents the six museum chapters in narrative order', async ({ page }) => 
   await expect(
     page.getByRole('heading', { name: 'Nanami is probably watching you.' }),
   ).toBeVisible()
+})
+
+test('renders a deterministic guestbook entry when exercising the Vite site', async ({ page }) => {
+  test.skip(process.env.E2E_BASE_URL !== undefined, 'live Pages API coverage belongs to the deployed integration suite')
+
+  await page.goto('/#guestbook')
+  await expect(page.getByText('Hello from the Vite guestbook fixture.', { exact: true })).toBeVisible()
+  await expect(page.getByText('Momo', { exact: true })).toBeVisible()
 })
 
 test('keeps both locales free of runtime failures, overlays, and legacy 3D', async ({ page }) => {
@@ -163,6 +208,7 @@ test.describe('desktop museum', () => {
     await expect(page.getByText('Right-angle tail tip', { exact: true })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'Mood Archive' })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'His story is still unfolding.' })).toBeAttached()
+    await expect(page.getByRole('heading', { name: 'Leave a pawprint.' })).toBeAttached()
     await expect(page.getByRole('heading', { name: 'Nanami is probably watching you.' })).toBeAttached()
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
@@ -296,7 +342,7 @@ test.describe('desktop museum', () => {
     await page.goto('/')
     const hero = page.getByRole('img', { name: heroAlt })
     await waitForImage(hero)
-    await expect(page.locator('[data-reveal="static"]')).toHaveCount(6)
+    await expect(page.locator('[data-reveal="static"]')).toHaveCount(7)
     await expect(page.locator('[data-reveal="animated"]')).toHaveCount(0)
     await expect(page.locator('canvas')).toHaveCount(0)
     expect(modelRequests).toEqual([])
@@ -383,7 +429,7 @@ test.describe('mobile safety', () => {
     await expect(hero.getByText('Cinematic portrait', { exact: true })).toBeVisible()
   })
 
-  test('mobile menu navigates to the archive and closes', async ({ page }) => {
+  test('mobile menu navigates to the archive and guestbook, then closes', async ({ page }) => {
     await page.goto('/')
     const menu = page.getByRole('button', { name: 'Menu' })
 
@@ -399,6 +445,16 @@ test.describe('mobile safety', () => {
     await expect(menu).toHaveAttribute('aria-expanded', 'false')
     await expect(page).toHaveURL(/#mood-archive$/)
     await expect(page.locator('#mood-archive')).toBeInViewport()
+
+    await menu.tap()
+    const guestbook = dialog.getByRole('link', { name: 'Guestbook' })
+    await guestbook.focus()
+    await page.keyboard.press('Enter')
+
+    await expect(dialog).toBeHidden()
+    await expect(menu).toHaveAttribute('aria-expanded', 'false')
+    await expect(page).toHaveURL(/#guestbook$/)
+    await expect(page.locator('#guestbook')).toBeInViewport()
 
     await menu.tap()
     const close = dialog.getByRole('button', { name: 'Close' })

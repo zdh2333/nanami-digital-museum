@@ -23,21 +23,31 @@ declare global {
 
 const scriptId = 'nanami-turnstile-script'
 const scriptUrl = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+let scriptLoadPromise: Promise<TurnstileApi> | undefined
+let scriptLoadError: Error | undefined
 
 function loadTurnstileScript(): Promise<TurnstileApi> {
   if (window.turnstile !== undefined) return Promise.resolve(window.turnstile)
+  if (scriptLoadError !== undefined) return Promise.reject(scriptLoadError)
+  if (scriptLoadPromise !== undefined) return scriptLoadPromise
 
   const existing = document.getElementById(scriptId) as HTMLScriptElement | null
   const script = existing ?? document.createElement('script')
+  if (existing?.dataset.nanamiTurnstileState === 'failed') {
+    scriptLoadError = new Error('Turnstile script could not load')
+    return Promise.reject(scriptLoadError)
+  }
+
   if (existing === null) {
     script.id = scriptId
     script.src = scriptUrl
     script.async = true
     script.defer = true
+    script.dataset.nanamiTurnstileState = 'loading'
     document.head.append(script)
   }
 
-  return new Promise((resolve, reject) => {
+  scriptLoadPromise = new Promise<TurnstileApi>((resolve, reject) => {
     const complete = () => {
       if (window.turnstile === undefined) {
         reject(new Error('Turnstile script loaded without an API'))
@@ -47,7 +57,21 @@ function loadTurnstileScript(): Promise<TurnstileApi> {
     }
     script.addEventListener('load', complete, { once: true })
     script.addEventListener('error', () => reject(new Error('Turnstile script could not load')), { once: true })
-  })
+  }).then(
+    (turnstile) => {
+      script.dataset.nanamiTurnstileState = 'ready'
+      return turnstile
+    },
+    (error: unknown) => {
+      script.dataset.nanamiTurnstileState = 'failed'
+      scriptLoadError = error instanceof Error
+        ? error
+        : new Error('Turnstile script could not load')
+      throw scriptLoadError
+    },
+  )
+
+  return scriptLoadPromise
 }
 
 type TurnstileWidgetProps = {
