@@ -9,6 +9,27 @@ class UnsupportedImageError extends Error {
   }
 }
 
+const invalidImageErrorCodes = new Set([
+  9402, // input cannot be processed
+  9412, // input is not an image
+  9413, // input image area is too large
+  9520, // image format is unsupported
+  9523, // image format cannot be decoded
+])
+
+function isInvalidImageError(error: unknown): boolean {
+  if (error instanceof UnsupportedImageError) {
+    return true
+  }
+
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false
+  }
+
+  const { code } = error
+  return typeof code === 'number' && invalidImageErrorCodes.has(code)
+}
+
 function hasSupportedImageSignature(bytes: ArrayBuffer): boolean {
   const value = new Uint8Array(bytes)
 
@@ -67,6 +88,10 @@ export async function sanitizeImage(bytes: ArrayBuffer, images: ImagesBinding): 
     .output({ format: 'image/webp' })
 
   const response = output.response()
+  if (!response.ok) {
+    throw new Error('Images transformation did not return a successful response')
+  }
+
   return new Response(response.body, {
     headers: { 'content-type': 'image/webp' },
   })
@@ -74,14 +99,18 @@ export async function sanitizeImage(bytes: ArrayBuffer, images: ImagesBinding): 
 
 export default {
   async fetch(request, env) {
-    if (request.method !== 'POST' || request.headers.get('x-nanami-internal') !== 'pages') {
-      return new Response('Not found', { status: 404 })
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 })
     }
 
     try {
       return await sanitizeImage(await request.arrayBuffer(), env.IMAGES)
-    } catch {
-      return new Response('Unsupported image format', { status: 415 })
+    } catch (error) {
+      if (isInvalidImageError(error)) {
+        return new Response('Unsupported image format', { status: 415 })
+      }
+
+      return new Response('Image sanitization unavailable', { status: 502 })
     }
   },
 } satisfies ExportedHandler<SanitizerEnv>

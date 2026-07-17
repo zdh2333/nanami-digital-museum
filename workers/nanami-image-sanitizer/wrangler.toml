@@ -1,6 +1,7 @@
 name = "nanami-image-sanitizer"
 main = "src/index.ts"
 compatibility_date = "2026-07-17"
+workers_dev = false
 
 [images]
 binding = "IMAGES"
