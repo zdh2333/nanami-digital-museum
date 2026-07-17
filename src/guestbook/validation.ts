@@ -37,9 +37,35 @@ function fail(message: string): never {
   throw new GuestbookValidationError(message)
 }
 
+function hasLoneUtf16Surrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      const nextCodeUnit = value.charCodeAt(index + 1)
+      if (!(nextCodeUnit >= 0xdc00 && nextCodeUnit <= 0xdfff)) {
+        return true
+      }
+
+      index += 1
+      continue
+    }
+
+    if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function normalizedPlainText(value: unknown, fieldName: 'Nickname' | 'Message'): string {
   if (typeof value !== 'string') {
     return fail(`${fieldName} must be text`)
+  }
+
+  if (hasLoneUtf16Surrogate(value)) {
+    return fail(`${fieldName} contains malformed Unicode`)
   }
 
   const normalized = value.normalize('NFC').trim()

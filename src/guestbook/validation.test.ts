@@ -34,6 +34,15 @@ describe('guestbook submission validation', () => {
   })
 
   it.each([
+    ['nickname high surrogate', { nickname: 'Nanami\uD800', message: 'hello', emoji: '' }, 'Nickname contains malformed Unicode'],
+    ['nickname low surrogate', { nickname: 'Nanami\uDC00', message: 'hello', emoji: '' }, 'Nickname contains malformed Unicode'],
+    ['message high surrogate', { nickname: 'Nanami', message: 'hello\uD800', emoji: '' }, 'Message contains malformed Unicode'],
+    ['message low surrogate', { nickname: 'Nanami', message: 'hello\uDC00', emoji: '' }, 'Message contains malformed Unicode'],
+  ])('rejects a lone UTF-16 surrogate in %s before persistence', (_, fields, message) => {
+    expect(() => parseEntryFields(fields)).toThrow(message)
+  })
+
+  it.each([
     ['nickname', { nickname: '   ', message: 'hello', emoji: '' }, 'Nickname is required'],
     ['message', { nickname: 'x', message: '   ', emoji: '' }, 'Message is required'],
     ['emoji', { nickname: 'x', message: 'hello', emoji: '\uD83D\uDD25' }, 'Emoji is not allowed'],
