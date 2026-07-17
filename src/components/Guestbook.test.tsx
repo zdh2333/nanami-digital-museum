@@ -66,6 +66,7 @@ describe('Guestbook', () => {
     fireEvent.change(screen.getByLabelText('Cat photo'), {
       target: { files: [new File(['cat'], 'nanami.webp', { type: 'image/webp' })] },
     })
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
     fireEvent.submit(screen.getByRole('button', { name: 'Leave a pawprint' }).closest('form') as HTMLFormElement)
 
     expect(await screen.findByText('Hello Nanami')).toBeVisible()
@@ -90,11 +91,64 @@ describe('Guestbook', () => {
     expect(container.querySelector('b')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Nickname'), { target: { value: 'Momo' } })
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Please say hi' } })
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
     fireEvent.submit(screen.getByRole('button', { name: 'Leave a pawprint' }).closest('form') as HTMLFormElement)
 
     expect(await screen.findByText('Please try again later.')).toBeVisible()
     expect(screen.getByLabelText('Nickname')).toHaveValue('Momo')
     expect(screen.getByLabelText('Message')).toHaveValue('Please say hi')
+  })
+
+  it('keeps an overlong message client-side without posting or resetting Turnstile', async () => {
+    const fetch = vi.fn(async () => Response.json({ entries: [], nextCursor: null }))
+    vi.stubGlobal('fetch', fetch)
+    renderGuestbook()
+
+    await screen.findByText('No pawprints here yet.')
+    const message = 'm'.repeat(501)
+    fireEvent.change(screen.getByLabelText('Nickname'), { target: { value: ' Momo ' } })
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: message } })
+    fireEvent.submit(screen.getByRole('button', { name: 'Leave a pawprint' }).closest('form') as HTMLFormElement)
+
+    expect(await screen.findByText('Message must be 500 characters or fewer')).toBeVisible()
+    expect(screen.getByLabelText('Nickname')).toHaveValue(' Momo ')
+    expect(screen.getByLabelText('Message')).toHaveValue(message)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(window.turnstile?.reset).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unsupported photo client-side without posting or resetting Turnstile', async () => {
+    const fetch = vi.fn(async () => Response.json({ entries: [], nextCursor: null }))
+    vi.stubGlobal('fetch', fetch)
+    renderGuestbook()
+
+    await screen.findByText('No pawprints here yet.')
+    fireEvent.change(screen.getByLabelText('Nickname'), { target: { value: 'Momo' } })
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello Nanami' } })
+    fireEvent.change(screen.getByLabelText('Cat photo'), {
+      target: { files: [new File(['cat'], 'nanami.gif', { type: 'image/gif' })] },
+    })
+    fireEvent.submit(screen.getByRole('button', { name: 'Leave a pawprint' }).closest('form') as HTMLFormElement)
+
+    expect(await screen.findByText('Photo MIME type is not allowed')).toBeVisible()
+    expect(screen.getByText('nanami.gif')).toBeVisible()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(window.turnstile?.reset).not.toHaveBeenCalled()
+  })
+
+  it('does not request Turnstile until the draft passes client prevalidation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ entries: [], nextCursor: null })))
+    renderGuestbook()
+
+    await screen.findByText('No pawprints here yet.')
+    expect(window.turnstile?.render).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Nickname'), { target: { value: 'Momo' } })
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'm'.repeat(501) } })
+    expect(window.turnstile?.render).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello Nanami' } })
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
   })
 
   it('localizes the chapter, navigation target copy, and 44px control affordances', async () => {

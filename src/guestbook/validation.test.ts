@@ -4,6 +4,7 @@ import {
   GuestbookValidationError,
   parseEntryFields,
   validatePhoto,
+  validatePhotoMetadata,
   validatePhotoSignature,
 } from './validation'
 
@@ -94,6 +95,15 @@ describe('guestbook submission validation', () => {
     ['image/webp', webp, webp.byteLength],
   ] as const)('accepts a matching %s MIME type within the upload limit', (declaredMime, bytes, size) => {
     expect(validatePhoto({ declaredMime, bytes, size })).toBe(declaredMime)
+  })
+
+  it('exposes the client-safe photo MIME and size checks before reading the file', () => {
+    expect(validatePhotoMetadata({ declaredMime: ' IMAGE/WEBP ', size: 0 })).toBe('image/webp')
+    expect(() => validatePhotoMetadata({ declaredMime: 'image/gif', size: 0 })).toThrow('Photo MIME type is not allowed')
+    expect(() => validatePhotoMetadata({
+      declaredMime: 'image/webp',
+      size: guestbookLimits.photoMaxBytes + 1,
+    })).toThrow('Photo exceeds the 5 MiB limit')
   })
 
   it.each([

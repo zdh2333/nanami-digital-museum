@@ -20,6 +20,11 @@ export interface PhotoValidationInput {
   size: number
 }
 
+export interface PhotoMetadataValidationInput {
+  declaredMime: unknown
+  size: unknown
+}
+
 export class GuestbookValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -169,14 +174,28 @@ function parseDeclaredPhotoMime(value: unknown): SupportedPhotoMime {
   return mime as SupportedPhotoMime
 }
 
-export function validatePhoto({ declaredMime, bytes, size }: PhotoValidationInput): SupportedPhotoMime {
+export function validatePhotoMetadata({ declaredMime, size }: PhotoMetadataValidationInput): SupportedPhotoMime {
   const mime = parseDeclaredPhotoMime(declaredMime)
 
-  if (size > guestbookLimits.photoMaxBytes || bytes.byteLength > guestbookLimits.photoMaxBytes) {
+  if (typeof size === 'number' && size > guestbookLimits.photoMaxBytes) {
     return fail('Photo exceeds the 5 MiB limit')
   }
 
-  if (!Number.isSafeInteger(size) || size < 0 || size !== bytes.byteLength) {
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0) {
+    return fail('Photo size is invalid')
+  }
+
+  return mime
+}
+
+export function validatePhoto({ declaredMime, bytes, size }: PhotoValidationInput): SupportedPhotoMime {
+  const mime = validatePhotoMetadata({ declaredMime, size })
+
+  if (bytes.byteLength > guestbookLimits.photoMaxBytes) {
+    return fail('Photo exceeds the 5 MiB limit')
+  }
+
+  if (size !== bytes.byteLength) {
     return fail('Photo size is invalid')
   }
 

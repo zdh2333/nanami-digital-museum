@@ -17,6 +17,11 @@ import {
   toggleReaction,
   type GuestbookEntry,
 } from '../guestbook/client'
+import {
+  GuestbookValidationError,
+  parseEntryFields,
+  validatePhotoMetadata,
+} from '../guestbook/validation'
 import { useLocale } from '../i18n/LocaleProvider'
 import { SectionReveal } from './SectionReveal'
 import { TurnstileWidget } from './TurnstileWidget'
@@ -30,13 +35,26 @@ type GuestbookProps = {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof GuestbookApiError
+  return error instanceof GuestbookApiError || error instanceof GuestbookValidationError
     ? error.message
     : 'Guestbook is temporarily unavailable. Please try again later.'
 }
 
 function reactionKey(entryId: string, emoji: GuestbookEmoji): string {
   return `${entryId}:${emoji}`
+}
+
+function validateDraft(input: {
+  nickname: string
+  message: string
+  emoji: GuestbookEmoji | ''
+  photo: File | null
+}) {
+  const fields = parseEntryFields(input)
+  if (input.photo !== null) {
+    validatePhotoMetadata({ declaredMime: input.photo.type, size: input.photo.size })
+  }
+  return fields
 }
 
 function updateReaction(
@@ -75,6 +93,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
   const [pendingPhotoIds, setPendingPhotoIds] = useState<ReadonlySet<string>>(() => new Set())
   const [activeReactionKeys, setActiveReactionKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [pendingReactionKeys, setPendingReactionKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const [hasRequestedVerification, setHasRequestedVerification] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chapterPhotos = useMemo(
@@ -85,6 +104,18 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     [],
   )
   const featurePhoto = chapterPhotos[0]
+  const draftIsReadyForVerification = useMemo(() => {
+    try {
+      validateDraft({ nickname, message, emoji, photo })
+      return true
+    } catch {
+      return false
+    }
+  }, [emoji, message, nickname, photo])
+
+  useEffect(() => {
+    if (draftIsReadyForVerification) setHasRequestedVerification(true)
+  }, [draftIsReadyForVerification])
 
   const clearSelectedPhoto = useCallback(() => {
     if (photoPreview !== null) URL.revokeObjectURL(photoPreview)
@@ -139,6 +170,15 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
   const submitEntry = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting) return
+
+    let fields: ReturnType<typeof parseEntryFields>
+    try {
+      fields = validateDraft({ nickname, message, emoji, photo })
+    } catch (error) {
+      setFormError(errorMessage(error))
+      return
+    }
+
     if (turnstileToken === null) {
       setFormError(copy.guestbook.verificationRequired)
       return
@@ -148,7 +188,13 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     setFormError(null)
     setFormSuccess(null)
     try {
-      const created = await createGuestbookEntry({ nickname, message, emoji, photo, turnstileToken })
+      const created = await createGuestbookEntry({
+        nickname: fields.nickname,
+        message: fields.message,
+        emoji: fields.emoji,
+        photo,
+        turnstileToken,
+      })
       setEntries((current) => [created.entry, ...current])
       if (created.photoStatus === 'pending') {
         setPendingPhotoIds((current) => new Set(current).add(created.entry.id))
@@ -300,12 +346,12 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
               <button type="button" onClick={clearSelectedPhoto}>{copy.guestbook.photoRemove}</button>
             </div> : null}
           </div>
-          <TurnstileWidget
+          {draftIsReadyForVerification || hasRequestedVerification ? <TurnstileWidget
             siteKey={siteKey}
             onToken={onTurnstileToken}
             resetKey={resetKey}
             unavailableLabel={copy.guestbook.verificationUnavailable}
-          />
+          /> : null}
           <div className="guestbook__form-footer">
             <div aria-live="polite" className="guestbook__form-status">
               {formError ? <p className="guestbook__error">{formError}</p> : null}
