@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 interface TurnstileRenderOptions {
   sitekey: string
   theme: 'dark'
+  size: 'normal' | 'compact'
   action: string
   callback: (token: string) => void
   'expired-callback': () => void
@@ -23,8 +24,13 @@ declare global {
 
 const scriptId = 'nanami-turnstile-script'
 const scriptUrl = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+const compactViewportMaxWidth = 359
 let scriptLoadPromise: Promise<TurnstileApi> | undefined
 let scriptLoadError: Error | undefined
+
+function turnstileSizeForViewport(): TurnstileRenderOptions['size'] {
+  return window.innerWidth <= compactViewportMaxWidth ? 'compact' : 'normal'
+}
 
 function loadTurnstileScript(): Promise<TurnstileApi> {
   if (window.turnstile !== undefined) return Promise.resolve(window.turnstile)
@@ -89,9 +95,21 @@ export function TurnstileWidget({
 }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string>()
+  const previousSizeRef = useRef<TurnstileRenderOptions['size']>()
   const [unavailable, setUnavailable] = useState(siteKey.trim() === '')
+  const [size, setSize] = useState<TurnstileRenderOptions['size']>(turnstileSizeForViewport)
 
   useEffect(() => {
+    const updateSize = () => setSize(turnstileSizeForViewport())
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [])
+
+  useEffect(() => {
+    // A viewport transition replaces the embedded challenge. Its prior token
+    // must not be reused after the widget is removed and rendered again.
+    if (previousSizeRef.current !== undefined && previousSizeRef.current !== size) onToken(null)
+    previousSizeRef.current = size
     if (siteKey.trim() === '') {
       onToken(null)
       setUnavailable(true)
@@ -106,6 +124,7 @@ export function TurnstileWidget({
         widgetIdRef.current = turnstile.render(containerRef.current, {
           sitekey: siteKey,
           theme: 'dark',
+          size,
           action: 'guestbook-write',
           callback: (token) => active && onToken(token),
           'expired-callback': () => active && onToken(null),
@@ -129,7 +148,7 @@ export function TurnstileWidget({
         widgetIdRef.current = undefined
       }
     }
-  }, [onToken, siteKey])
+  }, [onToken, siteKey, size])
 
   useEffect(() => {
     if (resetKey === 0 || widgetIdRef.current === undefined || window.turnstile === undefined) return

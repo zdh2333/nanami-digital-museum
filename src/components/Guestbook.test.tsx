@@ -17,6 +17,7 @@ const currentEntry = {
 
 let issueTurnstileToken: ((token: string) => void) | undefined
 let failTurnstileVerification: (() => void) | undefined
+const defaultViewportWidth = window.innerWidth
 
 function renderGuestbook(locale: 'en' | 'zh-CN' = 'en') {
   localStorage.setItem('nanami-locale', locale)
@@ -25,6 +26,7 @@ function renderGuestbook(locale: 'en' | 'zh-CN' = 'en') {
 
 beforeEach(() => {
   localStorage.clear()
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: defaultViewportWidth, writable: true })
   document.querySelector('#nanami-turnstile-script')?.remove()
   Object.defineProperty(window, 'turnstile', {
     configurable: true,
@@ -43,6 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: defaultViewportWidth, writable: true })
   document.querySelector('#nanami-turnstile-script')?.remove()
 })
 
@@ -261,6 +264,51 @@ describe('Guestbook', () => {
     const remount = render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
     expect(await remount.findByText('Turnstile unavailable')).toHaveAttribute('role', 'status')
     expect(document.querySelectorAll('#nanami-turnstile-script')).toHaveLength(1)
+  })
+
+  it('uses Cloudflare compact Turnstile at 320px and clears the old token when resizing back to normal', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320, writable: true })
+    const onToken = vi.fn()
+    render(<TurnstileWidget siteKey="test-site-key" onToken={onToken} resetKey={0} unavailableLabel="Turnstile unavailable" />)
+
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
+    expect(window.turnstile?.render).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      size: 'compact',
+    }))
+
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390, writable: true })
+    await act(async () => window.dispatchEvent(new Event('resize')))
+
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(2))
+    expect(window.turnstile?.remove).toHaveBeenCalledWith('widget-id')
+    expect(onToken).toHaveBeenCalledWith(null)
+    expect(window.turnstile?.render).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      size: 'normal',
+    }))
+  })
+
+  it('gives entry and reaction verification the compact size at a 320px viewport', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320, writable: true })
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ entries: [currentEntry], nextCursor: null }))
+      .mockResolvedValueOnce(Response.json({
+        entryId: 'entry-1', emoji: '🖤', active: true, total: 1,
+      }))
+    vi.stubGlobal('fetch', fetch)
+    renderGuestbook()
+
+    const entry = await screen.findByText('Hello Nanami')
+    fireEvent.change(screen.getByLabelText('Nickname'), { target: { value: 'Momo' } })
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello Nanami' } })
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
+
+    const card = entry.closest('article') as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: 'Add 🖤 reaction' }))
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(2))
+
+    const calls = (window.turnstile?.render as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    expect(calls).toHaveLength(2)
+    expect(calls.every(([, options]) => (options as { size?: string }).size === 'compact')).toBe(true)
   })
 
   it('offers each visible reaction as a labelled, toggleable control', async () => {
