@@ -643,7 +643,7 @@ export async function verifyTurnstile(
     response = await fetchImplementation('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ secret, response: token }),
+      body: new URLSearchParams({ secret: secret.trim(), response: token }),
     })
   } catch (err: any) {
     throw new GuestbookTurnstileError('Turnstile verification failed: fetch error ' + (err?.message || 'unknown'))
