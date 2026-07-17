@@ -638,29 +638,39 @@ export async function verifyTurnstile(
   }
   const fetchImplementation = options.fetchImplementation ?? fetch
 
+  const cleanSecret = secret.trim().replace(/^["']|["']$/g, '')
+  const cleanToken = token.trim().replace(/^["']|["']$/g, '')
+
   let response: Response
   try {
     response = await fetchImplementation('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ secret: secret.trim(), response: token }),
+      body: `secret=${encodeURIComponent(cleanSecret)}&response=${encodeURIComponent(cleanToken)}`,
     })
   } catch (err: any) {
     throw new GuestbookTurnstileError('Turnstile verification failed: fetch error ' + (err?.message || 'unknown'))
   }
 
+  let responseText = ''
+  try {
+    responseText = await response.text()
+  } catch {
+    // Ignore text read error
+  }
+
   if (!response.ok) {
-    throw new GuestbookTurnstileError('Turnstile verification failed: siteverify status ' + response.status)
+    throw new GuestbookTurnstileError(`Turnstile verification failed: siteverify status ${response.status}. Response: ${responseText}`)
   }
 
   try {
-    const payload: any = await response.json()
+    const payload: any = JSON.parse(responseText)
     if (typeof payload !== 'object' || payload === null) {
-      throw new GuestbookTurnstileError('Turnstile verification failed: invalid payload format')
+      throw new GuestbookTurnstileError('Turnstile verification failed: invalid payload format. Response: ' + responseText)
     }
     if (payload.success !== true) {
       const errorCodes = Array.isArray(payload['error-codes']) ? payload['error-codes'].join(', ') : 'none'
-      throw new GuestbookTurnstileError(`Turnstile verification failed: success false (error-codes: ${errorCodes})`)
+      throw new GuestbookTurnstileError(`Turnstile verification failed: success false (error-codes: ${errorCodes}). Response: ${responseText}`)
     }
     if (typeof payload.hostname !== 'string' || !expectedHostnames.includes(payload.hostname)) {
       throw new GuestbookTurnstileError(`Turnstile verification failed: hostname mismatch (got ${payload.hostname}, expected ${expectedHostnames.join(', ')})`)
@@ -673,7 +683,7 @@ export async function verifyTurnstile(
       throw error
     }
 
-    throw new GuestbookTurnstileError('Turnstile verification failed: JSON parse error')
+    throw new GuestbookTurnstileError('Turnstile verification failed: JSON parse error. Response: ' + responseText)
   }
 }
 
