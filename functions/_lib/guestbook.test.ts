@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   createGuestbookEntry,
+  createGuestbookPhotoEntry,
   decodeGuestbookCursor,
   encodeGuestbookCursor,
   enforceRateLimit,
+  getRateIdentity,
   getVisitor,
   listPublicGuestbookEntries,
   setGuestbookReaction,
@@ -175,6 +177,20 @@ describe('guestbook persistence helpers', () => {
     expect(visitor.visitorHash).not.toContain('raw-token')
   })
 
+  it('derives a stable server-side rate identity from CF-Connecting-IP without persisting the raw address', async () => {
+    const request = new Request('https://nanamicat.com/api/guestbook', {
+      headers: { 'cf-connecting-ip': '203.0.113.44' },
+    })
+
+    const first = await getRateIdentity(request, 'guestbook-hmac-secret')
+    const second = await getRateIdentity(request, 'guestbook-hmac-secret')
+
+    expect(first).toBe(second)
+    expect(first).not.toContain('203.0.113.44')
+    await expect(getRateIdentity(new Request('https://nanamicat.com/api/guestbook'), 'guestbook-hmac-secret'))
+      .rejects.toThrow('Guestbook write protection is unavailable')
+  })
+
   it.each([
     ['entry', 3],
     ['reaction', 24],
@@ -324,6 +340,39 @@ describe('guestbook persistence helpers', () => {
       'entry-new', 'Momo', 'Nice tail', '🐈‍⬛', 'pending/entry-new.webp', 'pending', 1_700_000_000_000,
     ])
     expect(queries[0].values.join(' ')).not.toContain('visitor')
+  })
+
+  it('atomically commits a photo entry while clearing its prior cleanup intent', async () => {
+    const queries: Query[] = []
+    const statement = (sql: string, values: unknown[] = []) => ({
+      sql,
+      values,
+      bind: (...bound: unknown[]) => statement(sql, bound),
+    })
+    const db = {
+      prepare: (sql: string) => statement(sql),
+      batch: async (statements: unknown[]) => {
+        for (const raw of statements) {
+          const query = raw as Query
+          queries.push(query)
+        }
+        return []
+      },
+    }
+
+    const entry = await createGuestbookPhotoEntry(envWith(db), {
+      id: 'entry-photo', nickname: 'Momo', message: 'Hello', emoji: '🐾',
+      photoKey: 'pending/entry-photo.webp', photoStatus: 'pending', now: 1_700_000_000_000,
+    })
+
+    expect(entry.photo_status).toBe('pending')
+    expect(queries).toEqual([
+      expect.objectContaining({ sql: expect.stringContaining('INSERT INTO guestbook_entries') }),
+      expect.objectContaining({
+        sql: 'DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?',
+        values: ['pending/entry-photo.webp'],
+      }),
+    ])
   })
 
   it('persists an explicit active reaction and aggregates it in one serialized D1 batch', async () => {

@@ -24,7 +24,7 @@ export const onRequestGet: PagesFunction<GuestbookEnv, 'id'> = async (context) =
       headers: {
         'content-type': 'image/webp',
         'x-content-type-options': 'nosniff',
-        'cache-control': 'public, max-age=86400',
+        'cache-control': 'no-store',
       },
     })
   } catch (error) {

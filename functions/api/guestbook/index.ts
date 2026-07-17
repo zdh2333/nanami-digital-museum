@@ -1,6 +1,10 @@
 import {
   createGuestbookEntry,
+  createGuestbookPhotoEntry,
+  createPhotoCleanupIntent,
+  clearPhotoCleanupIntent,
   enforceRateLimit,
+  getRateIdentity,
   getVisitor,
   listPublicGuestbookEntries,
   serializePublicEntry,
@@ -13,6 +17,8 @@ import { guestbookLimits } from '../../../src/guestbook/contracts'
 import { GuestbookValidationError, parseEntryFields, validatePhoto } from '../../../src/guestbook/validation'
 
 const MAX_SANITIZED_PHOTO_BYTES = 5 * 1024 * 1024
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024
+export const MAX_MULTIPART_REQUEST_BYTES = guestbookLimits.photoMaxBytes + MULTIPART_OVERHEAD_BYTES
 
 function optionalPhoto(value: FormDataEntryValue | null): File | null {
   if (value === null) {
@@ -55,8 +61,11 @@ async function parseEntryRequest(request: Request): Promise<{
 
   let form: FormData
   try {
-    form = await request.formData()
-  } catch {
+    form = await (await readBoundedMultipartRequest(request)).formData()
+  } catch (error) {
+    if (error instanceof GuestbookValidationError) {
+      throw error
+    }
     throw new GuestbookValidationError('Guestbook form data is invalid')
   }
 
@@ -72,6 +81,61 @@ async function parseEntryRequest(request: Request): Promise<{
       turnstileToken: form.get('turnstileToken'),
     }),
   }
+}
+
+/**
+ * Read multipart bytes into a fixed-size buffer before invoking formData().
+ * Content-Length is merely an early rejection optimization; the stream cap is
+ * authoritative for absent, misleading, or malformed headers.
+ */
+export async function readBoundedMultipartRequest(request: Request): Promise<Request> {
+  const declaredLength = request.headers.get('content-length')
+  if (declaredLength !== null && /^(0|[1-9]\d*)$/.test(declaredLength)) {
+    const length = Number(declaredLength)
+    if (!Number.isSafeInteger(length) || length > MAX_MULTIPART_REQUEST_BYTES) {
+      throw new GuestbookValidationError('Guestbook upload is too large')
+    }
+  }
+
+  if (request.body === null) {
+    return request
+  }
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      total += value.byteLength
+      if (total > MAX_MULTIPART_REQUEST_BYTES) {
+        throw new GuestbookValidationError('Guestbook upload is too large')
+      }
+      chunks.push(value)
+    }
+  } catch (error) {
+    if (error instanceof GuestbookValidationError) {
+      throw error
+    }
+    throw new GuestbookValidationError('Guestbook upload could not be read')
+  } finally {
+    reader.releaseLock()
+  }
+
+  const body = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    body.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+
+  const headers = new Headers(request.headers)
+  headers.delete('content-length')
+  return new Request(request.url, { method: request.method, headers, body })
 }
 
 interface PreparedPhoto {
@@ -90,10 +154,10 @@ async function preparePhoto(photo: File): Promise<PreparedPhoto> {
   return { declaredMime: photo.type, bytes }
 }
 
-async function sanitizeAndStorePhoto(
+async function sanitizePhoto(
   env: GuestbookEnv,
   photo: PreparedPhoto,
-): Promise<string> {
+): Promise<ArrayBuffer> {
   let transformed: Response
   try {
     transformed = await env.IMAGE_SANITIZER.fetch(new Request('https://nanami-internal/sanitize', {
@@ -117,15 +181,20 @@ async function sanitizeAndStorePhoto(
     throw new GuestbookValidationError('Cat photo could not be processed')
   }
 
-  const photoKey = `pending/${crypto.randomUUID()}.webp`
-  await env.PHOTOS.put(photoKey, sanitizedBytes, {
+  return sanitizedBytes
+}
+
+async function storePendingPhoto(
+  env: GuestbookEnv,
+  photoKey: string,
+  bytes: ArrayBuffer,
+): Promise<void> {
+  await env.PHOTOS.put(photoKey, bytes, {
     httpMetadata: {
       contentType: 'image/webp',
       cacheControl: 'private, no-store',
     },
   })
-
-  return photoKey
 }
 
 export const onRequestGet: PagesFunction<GuestbookEnv> = async (context) => {
@@ -139,11 +208,13 @@ export const onRequestGet: PagesFunction<GuestbookEnv> = async (context) => {
 
 export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
   let visitor: GuestbookVisitor | undefined
-  let storedPhotoKey: string | undefined
+  let pendingPhotoKey: string | undefined
+  let cleanupIntentPending = false
 
   try {
     const submission = await parseEntryRequest(context.request)
     const preparedPhoto = submission.photo === null ? null : await preparePhoto(submission.photo)
+    const rateIdentity = await getRateIdentity(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await verifyTurnstile(
       submission.turnstileToken,
       context.env.TURNSTILE_SECRET_KEY,
@@ -156,19 +227,36 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
       action: 'entry',
       now: Date.now(),
     })
+    await enforceRateLimit(context.env, {
+      fingerprintHash: rateIdentity,
+      action: 'entry',
+      now: Date.now(),
+    })
 
-    storedPhotoKey = preparedPhoto === null
-      ? undefined
-      : await sanitizeAndStorePhoto(context.env, preparedPhoto)
-    const entry = await createGuestbookEntry(context.env, {
+    const now = Date.now()
+    let photoKey: string | undefined
+    if (preparedPhoto !== null) {
+      const sanitizedPhoto = await sanitizePhoto(context.env, preparedPhoto)
+      photoKey = `pending/${crypto.randomUUID()}.webp`
+      pendingPhotoKey = photoKey
+      await createPhotoCleanupIntent(context.env, photoKey, now)
+      cleanupIntentPending = true
+      await storePendingPhoto(context.env, photoKey, sanitizedPhoto)
+    }
+
+    const entryInput = {
       id: crypto.randomUUID(),
       nickname: submission.fields.nickname,
       message: submission.fields.message,
       emoji: submission.fields.emoji,
-      photoKey: storedPhotoKey,
-      photoStatus: storedPhotoKey === undefined ? 'none' : 'pending',
-      now: Date.now(),
-    })
+      photoKey,
+      photoStatus: photoKey === undefined ? 'none' as const : 'pending' as const,
+      now,
+    }
+    const entry = photoKey === undefined
+      ? await createGuestbookEntry(context.env, entryInput)
+      : await createGuestbookPhotoEntry(context.env, { ...entryInput, photoKey })
+    cleanupIntentPending = false
     const publicEntry = serializePublicEntry(entry, [])
 
     return guestbookJson({
@@ -177,11 +265,12 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
       photoUrl: publicEntry.photoUrl,
     }, 201, visitor)
   } catch (error) {
-    if (storedPhotoKey !== undefined) {
+    if (cleanupIntentPending && pendingPhotoKey !== undefined) {
       try {
-        await context.env.PHOTOS.delete(storedPhotoKey)
+        await context.env.PHOTOS.delete(pendingPhotoKey)
+        await clearPhotoCleanupIntent(context.env, pendingPhotoKey)
       } catch {
-        // The object remains private and cannot be served while its D1 row is absent.
+        // Keep the durable intent so the scheduled private cleaner can retry.
       }
     }
     return guestbookError(error, visitor)

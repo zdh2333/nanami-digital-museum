@@ -1,5 +1,6 @@
 import {
   enforceRateLimit,
+  getRateIdentity,
   getVisitor,
   setGuestbookReaction,
   verifyTurnstile,
@@ -44,6 +45,8 @@ export const onRequestPost: PagesFunction<GuestbookEnv, 'id'> = async (context) 
       throw new GuestbookValidationError('Reaction state is required')
     }
 
+    const rateIdentity = await getRateIdentity(context.request, context.env.GUESTBOOK_HMAC_KEY)
+
     await verifyTurnstile(
       getTurnstileToken(payload),
       context.env.TURNSTILE_SECRET_KEY,
@@ -52,6 +55,11 @@ export const onRequestPost: PagesFunction<GuestbookEnv, 'id'> = async (context) 
     visitor = await getVisitor(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await enforceRateLimit(context.env, {
       fingerprintHash: visitor.visitorHash,
+      action: 'reaction',
+      now: Date.now(),
+    })
+    await enforceRateLimit(context.env, {
+      fingerprintHash: rateIdentity,
       action: 'reaction',
       now: Date.now(),
     })

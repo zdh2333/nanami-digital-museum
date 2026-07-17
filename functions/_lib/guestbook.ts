@@ -92,6 +92,13 @@ export class GuestbookRateLimitError extends Error {
   }
 }
 
+export class GuestbookRateIdentityError extends Error {
+  constructor() {
+    super('Guestbook write protection is unavailable')
+    this.name = 'GuestbookRateIdentityError'
+  }
+}
+
 export class GuestbookNotFoundError extends Error {
   constructor() {
     super('Guestbook entry not found')
@@ -226,6 +233,26 @@ export async function getVisitor(
     visitorHash: await hmacBase64Url('visitor', token, secret),
     setCookie: serializeVisitorCookie(token, signature),
   }
+}
+
+/**
+ * Cloudflare sets CF-Connecting-IP before a Pages Function runs. Persist only
+ * a keyed digest, never the raw address, so clearing browser cookies cannot
+ * reset a writer's rate bucket.
+ */
+export async function getRateIdentity(request: Request, secret: string): Promise<string> {
+  const address = request.headers.get('cf-connecting-ip')
+  if (
+    secret.trim() === ''
+    || address === null
+    || address.length === 0
+    || address.length > 45
+    || !/^[0-9A-Fa-f:.]+$/.test(address)
+  ) {
+    throw new GuestbookRateIdentityError()
+  }
+
+  return hmacBase64Url('rate-ip', address, secret)
 }
 
 export function getRateWindowStart(now: number): number {
@@ -430,12 +457,9 @@ export async function listPublicGuestbookEntries(
   }
 }
 
-export async function createGuestbookEntry(
-  env: Pick<GuestbookEnv, 'DB'>,
-  input: NewGuestbookEntry,
-): Promise<GuestbookEntryRecord> {
+function buildGuestbookEntry(input: NewGuestbookEntry): GuestbookEntryRecord {
   const photoStatus = input.photoStatus ?? (input.photoKey === undefined || input.photoKey === null ? 'none' : 'pending')
-  const entry: GuestbookEntryRecord = {
+  return {
     id: input.id,
     nickname: input.nickname,
     message: input.message,
@@ -445,8 +469,10 @@ export async function createGuestbookEntry(
     hidden: 0,
     created_at: input.now,
   }
+}
 
-  await env.DB.prepare(
+function guestbookEntryInsertStatement(env: Pick<GuestbookEnv, 'DB'>, entry: GuestbookEntryRecord): D1PreparedStatement {
+  return env.DB.prepare(
     `INSERT INTO guestbook_entries
       (id, nickname, message, entry_emoji, photo_key, photo_status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -458,7 +484,53 @@ export async function createGuestbookEntry(
     entry.photo_key,
     entry.photo_status,
     entry.created_at,
-  ).run()
+  )
+}
+
+export async function createGuestbookEntry(
+  env: Pick<GuestbookEnv, 'DB'>,
+  input: NewGuestbookEntry,
+): Promise<GuestbookEntryRecord> {
+  const entry = buildGuestbookEntry(input)
+  await guestbookEntryInsertStatement(env, entry).run()
+
+  return entry
+}
+
+export async function createPhotoCleanupIntent(
+  env: Pick<GuestbookEnv, 'DB'>,
+  photoKey: string,
+  now: number,
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO guestbook_photo_cleanup (photo_key, created_at)
+     VALUES (?, ?)
+     ON CONFLICT(photo_key) DO NOTHING`,
+  ).bind(photoKey, now).run()
+}
+
+export async function clearPhotoCleanupIntent(
+  env: Pick<GuestbookEnv, 'DB'>,
+  photoKey: string,
+): Promise<void> {
+  await env.DB.prepare(
+    'DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?',
+  ).bind(photoKey).run()
+}
+
+/**
+ * D1 executes a batch atomically, so a cleanup intent is cleared only in the
+ * same committed transaction that makes its pending image reference durable.
+ */
+export async function createGuestbookPhotoEntry(
+  env: Pick<GuestbookEnv, 'DB'>,
+  input: NewGuestbookEntry & { photoKey: string },
+): Promise<GuestbookEntryRecord> {
+  const entry = buildGuestbookEntry(input)
+  await env.DB.batch([
+    guestbookEntryInsertStatement(env, entry),
+    env.DB.prepare('DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?').bind(input.photoKey),
+  ])
 
   return entry
 }

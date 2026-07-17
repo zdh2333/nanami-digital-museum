@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  MAX_MULTIPART_REQUEST_BYTES,
   onRequestGet as listGuestbook,
   onRequestPost as createGuestbook,
+  readBoundedMultipartRequest,
 } from './index'
 import { onRequestGet as getPhoto } from './photos/[id]'
 import { onRequestPost as setReaction } from './[id]/reactions'
@@ -81,6 +83,22 @@ function makeDb(options: {
         if (query.sql.includes('SELECT id FROM guestbook_entries')) {
           return { results: [{ id: String(query.values[0]) }], success: true, meta: {} }
         }
+        if (query.sql.includes('INSERT INTO guestbook_entries')) {
+          entries.push({
+            id: String(query.values[0]),
+            nickname: String(query.values[1]),
+            message: String(query.values[2]),
+            entry_emoji: typeof query.values[3] === 'string' ? query.values[3] : null,
+            photo_key: typeof query.values[4] === 'string' ? query.values[4] : null,
+            photo_status: query.values[5] as GuestbookRow['photo_status'],
+            hidden: 0,
+            created_at: Number(query.values[6]),
+          })
+          return { results: [], success: true, meta: { changes: 1 } }
+        }
+        if (query.sql.includes('DELETE FROM guestbook_photo_cleanup')) {
+          return { results: [], success: true, meta: { changes: 1 } }
+        }
         if (query.sql.includes('INSERT INTO guestbook_reactions')) {
           reactions.add(`${query.values[0]}:${query.values[1]}:${query.values[2]}`)
           return { results: [], success: true, meta: { changes: 1 } }
@@ -142,10 +160,18 @@ function successfulTurnstile() {
   }))
 }
 
-function entryRequest(fields: Record<string, string>, photo?: { name: string; type: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> }): Request {
+function entryRequest(
+  fields: Record<string, string>,
+  photo?: { name: string; type: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> },
+  clientIp: string | null = '203.0.113.44',
+): Request {
+  const headers = new Headers({ 'content-type': 'multipart/form-data; boundary=test-boundary' })
+  if (clientIp !== null) {
+    headers.set('cf-connecting-ip', clientIp)
+  }
   const request = new Request('https://nanamicat.com/api/guestbook', {
     method: 'POST',
-    headers: { 'content-type': 'multipart/form-data; boundary=test-boundary' },
+    headers,
   })
   const values: Record<string, FormDataEntryValue | null> = { ...fields }
   if (photo !== undefined) {
@@ -199,12 +225,53 @@ describe('guestbook Pages Functions', () => {
     expect(put).toHaveBeenCalledWith(expect.stringMatching(/^pending\/.+\.webp$/), expect.any(ArrayBuffer), {
       httpMetadata: { contentType: 'image/webp', cacheControl: 'private, no-store' },
     })
+    const storedKey = (put.mock.calls as unknown as Array<[string]>)[0]?.[0]
+    const intentInsert = db.queries.find(({ sql }) => sql.includes('INSERT INTO guestbook_photo_cleanup'))
+    expect(intentInsert?.values[0]).toBe(storedKey)
+    expect(db.queries).toContainEqual(expect.objectContaining({
+      sql: 'DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?',
+      values: [storedKey],
+    }))
     expect(sanitizer.fetch).toHaveBeenCalledWith(expect.objectContaining({
       method: 'POST',
       headers: expect.any(Headers),
     }))
     expect(response.headers.get('set-cookie')).toContain('HttpOnly')
     await expect(response.json()).resolves.toMatchObject({ photoStatus: 'pending', photoUrl: null })
+  })
+
+  it('retains the durable cleanup intent when an ambiguous R2 put cannot be immediately deleted', async () => {
+    const db = makeDb()
+    const put = vi.fn(async () => { throw new Error('R2 write outcome unknown') })
+    const remove = vi.fn(async () => { throw new Error('R2 delete outcome unknown') })
+    const sanitizer = { fetch: vi.fn(async () => new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+      status: 200,
+      headers: { 'content-type': 'image/webp' },
+    })) }
+    vi.stubGlobal('fetch', successfulTurnstile())
+    const photoBytes = new Uint8Array([0xff, 0xd8, 0xff, 0x01])
+    const photo = {
+      name: 'nanami.jpg', type: 'image/jpeg', size: photoBytes.byteLength,
+      arrayBuffer: async () => photoBytes.buffer.slice(0),
+    }
+
+    const response = await createGuestbook(pagesContext(entryRequest({
+      nickname: 'Momo', message: 'Hello', emoji: '', 'cf-turnstile-response': 'valid-token',
+    }, photo), makeEnv({
+      db: db.db,
+      sanitizer: sanitizer as unknown as Fetcher,
+      photos: { put, delete: remove } as unknown as R2Bucket,
+    })))
+
+    expect(response.status).toBe(500)
+    expect(remove).toHaveBeenCalledWith(expect.stringMatching(/^pending\/.+\.webp$/))
+    expect(db.queries).toContainEqual(expect.objectContaining({
+      sql: expect.stringContaining('INSERT INTO guestbook_photo_cleanup'),
+    }))
+    expect(db.queries).not.toContainEqual(expect.objectContaining({
+      sql: 'DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?',
+    }))
+    expect(db.entries).toEqual([])
   })
 
   it('returns a safe validation error before Turnstile or storage on malformed input', async () => {
@@ -258,7 +325,7 @@ describe('guestbook Pages Functions', () => {
   })
 
   it('blocks an entry after the rate limit has been reached', async () => {
-    const db = makeDb({ rateChanges: [0] })
+    const db = makeDb({ rateChanges: [1, 0] })
     vi.stubGlobal('fetch', successfulTurnstile())
 
     const response = await createGuestbook(pagesContext(entryRequest({
@@ -270,12 +337,93 @@ describe('guestbook Pages Functions', () => {
     expect(db.entries).toEqual([])
   })
 
+  it('shares the server HMAC rate bucket across repeated cookie-less writes', async () => {
+    const db = makeDb({ rateChanges: [1, 1, 1, 1, 1, 1, 1, 0] })
+    vi.stubGlobal('fetch', successfulTurnstile())
+
+    const responses: Response[] = []
+    for (let index = 0; index < 4; index += 1) {
+      responses.push(await createGuestbook(pagesContext(entryRequest({
+        nickname: 'Momo', message: 'Hello', emoji: '', 'cf-turnstile-response': 'valid-token',
+      }), makeEnv({ db: db.db }))))
+    }
+
+    expect(responses.map(({ status }) => status)).toEqual([201, 201, 201, 429])
+    expect(db.entries).toHaveLength(3)
+    const rateInsertions = db.queries.filter(({ sql }) => sql.includes('INSERT INTO guestbook_rate_events'))
+    const ipFingerprints = rateInsertions.filter((_, index) => index % 2 === 1).map(({ values }) => values[0])
+    expect(rateInsertions).toHaveLength(8)
+    expect(new Set(ipFingerprints)).toEqual(new Set([ipFingerprints[0]]))
+    expect(db.queries.flatMap(({ values }) => values)).not.toContain('203.0.113.44')
+  })
+
+  it('fails safely before Turnstile when Cloudflare does not provide CF-Connecting-IP', async () => {
+    const db = makeDb()
+    const turnstile = successfulTurnstile()
+    vi.stubGlobal('fetch', turnstile)
+
+    const response = await createGuestbook(pagesContext(entryRequest({
+      nickname: 'Momo', message: 'Hello', emoji: '', 'cf-turnstile-response': 'valid-token',
+    }, undefined, null), makeEnv({ db: db.db })))
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'Guestbook write protection is unavailable. Please try again later.' })
+    expect(turnstile).not.toHaveBeenCalled()
+    expect(db.entries).toEqual([])
+  })
+
+  it.each([null, 'not-a-number'])('bounds multipart bytes before form parsing when Content-Length is %s', async (contentLength) => {
+    const formData = vi.fn()
+    const turnstile = successfulTurnstile()
+    vi.stubGlobal('fetch', turnstile)
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_MULTIPART_REQUEST_BYTES + 1))
+        controller.close()
+      },
+    })
+    const headers = new Headers({ 'content-type': 'multipart/form-data; boundary=test-boundary' })
+    if (contentLength !== null) {
+      headers.set('content-length', contentLength)
+    }
+    const request = {
+      url: 'https://nanamicat.com/api/guestbook',
+      method: 'POST',
+      headers,
+      body,
+      formData,
+    } as unknown as Request
+
+    const response = await createGuestbook(pagesContext(request, makeEnv({ db: makeDb().db })))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'Guestbook upload is too large' })
+    expect(formData).not.toHaveBeenCalled()
+    expect(turnstile).not.toHaveBeenCalled()
+  })
+
+  it('rejects an oversized declared multipart body before reading its stream', async () => {
+    const getReader = vi.fn(() => ({ read: vi.fn() }))
+    const request = {
+      url: 'https://nanamicat.com/api/guestbook',
+      method: 'POST',
+      headers: new Headers({
+        'content-type': 'multipart/form-data; boundary=test-boundary',
+        'content-length': String(MAX_MULTIPART_REQUEST_BYTES + 1),
+      }),
+      body: { getReader },
+    } as unknown as Request
+
+    await expect(readBoundedMultipartRequest(request)).rejects.toThrow('Guestbook upload is too large')
+    expect(getReader).not.toHaveBeenCalled()
+  })
+
   it('sets exactly the requested reaction state after Turnstile verification', async () => {
     const db = makeDb()
     vi.stubGlobal('fetch', successfulTurnstile())
     const request = new Request('https://nanamicat.com/api/guestbook/entry-1/reactions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.44' },
       body: JSON.stringify({ emoji: '🖤', active: true, 'cf-turnstile-response': 'valid-token' }),
     })
 
@@ -294,7 +442,7 @@ describe('guestbook Pages Functions', () => {
     const db = makeDb()
     vi.stubGlobal('fetch', successfulTurnstile())
     const request = new Request('https://nanamicat.com/api/guestbook/entry-1/reactions', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+      method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.44' }, body: JSON.stringify(body),
     })
 
     const response = await setReaction(pagesContext(request, makeEnv({ db: db.db }), { id: 'entry-1' }))
@@ -322,7 +470,7 @@ describe('guestbook Pages Functions', () => {
     expect(approvedResponse.status).toBe(200)
     expect(approvedResponse.headers.get('content-type')).toBe('image/webp')
     expect(approvedResponse.headers.get('x-content-type-options')).toBe('nosniff')
-    expect(approvedResponse.headers.get('cache-control')).toBe('public, max-age=86400')
+    expect(approvedResponse.headers.get('cache-control')).toBe('no-store')
     expect(get).toHaveBeenCalledWith('pending/approved.webp')
   })
 })

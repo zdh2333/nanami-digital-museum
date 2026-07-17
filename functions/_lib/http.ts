@@ -1,6 +1,7 @@
 import {
   GuestbookCursorError,
   GuestbookNotFoundError,
+  GuestbookRateIdentityError,
   GuestbookRateLimitError,
   GuestbookTurnstileError,
   type GuestbookVisitor,
@@ -29,6 +30,10 @@ export function guestbookError(error: unknown, visitor?: GuestbookVisitor): Resp
 
   if (error instanceof GuestbookRateLimitError) {
     return guestbookJson({ error: error.message }, 429, visitor)
+  }
+
+  if (error instanceof GuestbookRateIdentityError) {
+    return guestbookJson({ error: 'Guestbook write protection is unavailable. Please try again later.' }, 503, visitor)
   }
 
   if (error instanceof GuestbookNotFoundError) {

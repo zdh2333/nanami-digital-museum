@@ -11,3 +11,7 @@ binding = "DB"
 database_name = "nanami-guestbook"
 # Task 7 must replace this placeholder with the id returned by `wrangler d1 create`.
 database_id = "00000000-0000-0000-0000-000000000000"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "nanami-guestbook-photos"
