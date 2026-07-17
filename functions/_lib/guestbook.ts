@@ -400,7 +400,7 @@ export function decodeGuestbookCursor(cursor: string): GuestbookCursor {
   }
 }
 
-function toEntryRecord(value: Record<string, unknown>): GuestbookEntryRecord {
+export function toEntryRecord(value: Record<string, unknown>): GuestbookEntryRecord {
   const photoStatus = typeof value.photo_status === 'string' && isPublicPhotoStatus(value.photo_status)
     ? value.photo_status
     : 'none'
@@ -417,7 +417,7 @@ function toEntryRecord(value: Record<string, unknown>): GuestbookEntryRecord {
   }
 }
 
-function toReactionTotal(value: Record<string, unknown>): GuestbookReactionTotal {
+export function toReactionTotal(value: Record<string, unknown>): GuestbookReactionTotal {
   return {
     emoji: String(value.emoji),
     total: Number(value.total),
