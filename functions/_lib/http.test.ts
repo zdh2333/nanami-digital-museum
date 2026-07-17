@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { turnstileOptions } from './http'
+import { TURNSTILE_TEST_SECRET_KEY, turnstileOptions } from './http'
 
 const productionHostnames = [
   'nanamicat.com',
@@ -21,5 +21,20 @@ describe('Turnstile hostname configuration', () => {
     expect(() => turnstileOptions({
       TURNSTILE_EXPECTED_HOSTNAMES: 'nanamicat.com,*.nanamicat.com',
     })).toThrow('Turnstile hostname configuration is invalid')
+  })
+
+  it('allows Cloudflare\'s documented dummy hostname only with the dedicated local test secret', () => {
+    expect(turnstileOptions({
+      TURNSTILE_TEST_MODE: 'true',
+      TURNSTILE_SECRET_KEY: TURNSTILE_TEST_SECRET_KEY,
+    })).toEqual({
+      expectedHostnames: ['example.com'],
+      expectedAction: undefined,
+    })
+
+    expect(() => turnstileOptions({
+      TURNSTILE_TEST_MODE: 'true',
+      TURNSTILE_SECRET_KEY: 'not-the-cloudflare-test-secret',
+    })).toThrow('Turnstile test configuration is invalid')
   })
 })

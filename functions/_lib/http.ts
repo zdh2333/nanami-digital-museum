@@ -5,12 +5,15 @@ import {
   GuestbookRateLimitError,
   GuestbookTurnstileError,
   NANAMI_TURNSTILE_HOSTNAMES,
+  TURNSTILE_TEST_HOSTNAMES,
+  TURNSTILE_TEST_SECRET_KEY,
   isNanamiTurnstileHostnameSet,
   type GuestbookVisitor,
 } from './guestbook'
 import { GuestbookValidationError } from '../../src/guestbook/validation'
 
 export const GUESTBOOK_TURNSTILE_ACTION = 'guestbook-write'
+export { TURNSTILE_TEST_SECRET_KEY } from './guestbook'
 
 export function guestbookJson(body: unknown, status: number, visitor?: GuestbookVisitor): Response {
   const headers = new Headers({ 'cache-control': 'no-store' })
@@ -48,7 +51,20 @@ export function guestbookError(error: unknown, visitor?: GuestbookVisitor): Resp
 export function turnstileOptions(env: {
   TURNSTILE_EXPECTED_HOSTNAMES?: string
   TURNSTILE_EXPECTED_ACTION?: string
+  TURNSTILE_SECRET_KEY?: string
+  TURNSTILE_TEST_MODE?: string
 }) {
+  if (env.TURNSTILE_TEST_MODE === 'true') {
+    if (env.TURNSTILE_SECRET_KEY !== TURNSTILE_TEST_SECRET_KEY) {
+      throw new Error('Turnstile test configuration is invalid')
+    }
+
+    return {
+      expectedHostnames: [...TURNSTILE_TEST_HOSTNAMES],
+      expectedAction: undefined,
+    }
+  }
+
   const expectedHostnames = env.TURNSTILE_EXPECTED_HOSTNAMES === undefined
     ? NANAMI_TURNSTILE_HOSTNAMES
     : env.TURNSTILE_EXPECTED_HOSTNAMES.split(',').map((hostname) => hostname.trim())

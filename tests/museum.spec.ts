@@ -27,7 +27,7 @@ const localGuestbookFixture = {
 }
 
 async function mockLocalGuestbookApi(page: Page) {
-  if (process.env.E2E_BASE_URL !== undefined) return
+  if (process.env.E2E_BASE_URL !== undefined || process.env.E2E_LOCAL_PAGES === '1') return
 
   await page.route(/\/api\/guestbook(?:\?.*)?$/, async (route) => {
     if (route.request().method() === 'GET') {
@@ -147,7 +147,10 @@ test('presents the seven museum chapters in narrative order', async ({ page }) =
 })
 
 test('renders a deterministic guestbook entry when exercising the Vite site', async ({ page }) => {
-  test.skip(process.env.E2E_BASE_URL !== undefined, 'live Pages API coverage belongs to the deployed integration suite')
+  test.skip(
+    process.env.E2E_BASE_URL !== undefined || process.env.E2E_LOCAL_PAGES === '1',
+    'the fixture is exclusive to the Vite client suite',
+  )
 
   await page.goto('/#guestbook')
   await expect(page.getByText('Hello from the Vite guestbook fixture.', { exact: true })).toBeVisible()

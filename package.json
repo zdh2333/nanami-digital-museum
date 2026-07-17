@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "dev:pages": "VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA npm run build && wrangler d1 migrations apply nanami-guestbook --local --persist-to .wrangler/state-e2e && wrangler pages dev dist --ip 127.0.0.1 --port 4173 --persist-to .wrangler/state-e2e --binding TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA --binding TURNSTILE_TEST_MODE=true --binding GUESTBOOK_HMAC_KEY=local-only-guestbook-test-key-2026",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:pages": "E2E_LOCAL_PAGES=1 playwright test --project=desktop",
     "test:e2e:desktop": "playwright test --project=desktop",
     "test:e2e:mobile": "playwright test --project=mobile",
     "audit:assets": "node scripts/audit-public-assets.mjs",

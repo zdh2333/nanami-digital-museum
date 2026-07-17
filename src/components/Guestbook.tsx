@@ -26,7 +26,10 @@ import { useLocale } from '../i18n/LocaleProvider'
 import { SectionReveal } from './SectionReveal'
 import { TurnstileWidget } from './TurnstileWidget'
 
-const publicTurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
+// Turnstile site keys are public. Keep the production key available at Vite
+// build time (Pages runtime vars do not rewrite an already-built asset), while
+// `dev:pages` overrides it with Cloudflare's documented local test key.
+const publicTurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '0x4AAAAAAD34l0QAtjJvwGlX'
 const chapterPhotoIds = ['nanami-photo-019', 'nanami-photo-017', 'nanami-photo-018'] as const
 
 type GuestbookProps = {

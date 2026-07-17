@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 const chromePath = process.env.NANAMI_CHROME_PATH
 const externalBaseURL = process.env.E2E_BASE_URL
+const localPages = process.env.E2E_LOCAL_PAGES === '1'
 const baseURL = externalBaseURL ?? 'http://127.0.0.1:4173'
 
 export default defineConfig({
@@ -43,9 +44,11 @@ export default defineConfig({
   webServer: externalBaseURL
     ? undefined
     : {
-        command: 'npm run dev -- --host 127.0.0.1 --port 4173',
+        command: localPages
+          ? 'npm run dev:pages'
+          : 'npm run dev -- --host 127.0.0.1 --port 4173',
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: !process.env.CI && !localPages,
         timeout: 120_000,
         stdout: 'pipe',
         stderr: 'pipe',

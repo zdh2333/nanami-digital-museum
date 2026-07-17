@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  TURNSTILE_TEST_SECRET_KEY,
   createGuestbookEntry,
   createGuestbookPhotoEntry,
   decodeGuestbookCursor,
@@ -301,6 +302,18 @@ describe('guestbook persistence helpers', () => {
         success: true,
         hostname: 'preview.nanamicat.com',
       }),
+    })).rejects.toThrow('Turnstile verification failed')
+  })
+
+  it('accepts Cloudflare\'s documented local test response only with its dedicated test secret', async () => {
+    await expect(verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX', TURNSTILE_TEST_SECRET_KEY, {
+      expectedHostnames: ['example.com'],
+      fetchImplementation: async () => Response.json({ success: true, hostname: 'example.com' }),
+    })).resolves.toBeUndefined()
+
+    await expect(verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX', 'turnstile-secret', {
+      expectedHostnames: ['example.com'],
+      fetchImplementation: async () => Response.json({ success: true, hostname: 'example.com' }),
     })).rejects.toThrow('Turnstile verification failed')
   })
 

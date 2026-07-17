@@ -6,6 +6,11 @@ import {
 
 export const GUESTBOOK_VISITOR_COOKIE = 'nanami_guestbook_visitor'
 
+// Cloudflare documents this public dummy secret for local integration tests.
+// It has no production authority and can validate only the test widget.
+export const TURNSTILE_TEST_SECRET_KEY = '1x0000000000000000000000000000000AA'
+export const TURNSTILE_TEST_HOSTNAMES = ['example.com'] as const
+
 export const NANAMI_TURNSTILE_HOSTNAMES = [
   'nanamicat.com',
   'www.nanamicat.com',
@@ -619,7 +624,13 @@ export async function verifyTurnstile(
     ? { fetchImplementation: configuration }
     : configuration
   const expectedHostnames = options.expectedHostnames ?? NANAMI_TURNSTILE_HOSTNAMES
-  if (!isNanamiTurnstileHostnameSet(expectedHostnames)) {
+  const usesProductionHostnames = isNanamiTurnstileHostnameSet(expectedHostnames)
+  const usesDocumentedTestHostname = secret === TURNSTILE_TEST_SECRET_KEY
+    && expectedHostnames.length === TURNSTILE_TEST_HOSTNAMES.length
+    && expectedHostnames.every((hostname) => (
+      (TURNSTILE_TEST_HOSTNAMES as readonly string[]).includes(hostname)
+    ))
+  if (!usesProductionHostnames && !usesDocumentedTestHostname) {
     throw new GuestbookTurnstileError()
   }
   const fetchImplementation = options.fetchImplementation ?? fetch
