@@ -133,8 +133,8 @@ export class GuestbookCursorError extends Error {
 }
 
 export class GuestbookTurnstileError extends Error {
-  constructor() {
-    super('Turnstile verification failed')
+  constructor(message = 'Turnstile verification failed') {
+    super(message)
     this.name = 'GuestbookTurnstileError'
   }
 }
@@ -616,8 +616,11 @@ export async function verifyTurnstile(
   secret: string,
   configuration: TurnstileVerificationOptions | FetchImplementation = {},
 ): Promise<void> {
-  if (typeof token !== 'string' || token.trim() === '' || secret.trim() === '') {
-    throw new GuestbookTurnstileError()
+  if (typeof token !== 'string' || token.trim() === '') {
+    throw new GuestbookTurnstileError('Turnstile verification failed: missing token')
+  }
+  if (secret.trim() === '') {
+    throw new GuestbookTurnstileError('Turnstile verification failed: missing secret key on server')
   }
 
   const options = typeof configuration === 'function'
@@ -631,7 +634,7 @@ export async function verifyTurnstile(
       (TURNSTILE_TEST_HOSTNAMES as readonly string[]).includes(hostname)
     ))
   if (!usesProductionHostnames && !usesDocumentedTestHostname) {
-    throw new GuestbookTurnstileError()
+    throw new GuestbookTurnstileError('Turnstile verification failed: invalid expected hostnames config')
   }
   const fetchImplementation = options.fetchImplementation ?? fetch
 
@@ -642,34 +645,35 @@ export async function verifyTurnstile(
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ secret, response: token }),
     })
-  } catch {
-    throw new GuestbookTurnstileError()
+  } catch (err: any) {
+    throw new GuestbookTurnstileError('Turnstile verification failed: fetch error ' + (err?.message || 'unknown'))
   }
 
   if (!response.ok) {
-    throw new GuestbookTurnstileError()
+    throw new GuestbookTurnstileError('Turnstile verification failed: siteverify status ' + response.status)
   }
 
   try {
-    const payload: unknown = await response.json()
-    if (
-      typeof payload !== 'object'
-      || payload === null
-      || !('success' in payload)
-      || !('hostname' in payload)
-      || payload.success !== true
-      || typeof payload.hostname !== 'string'
-      || !expectedHostnames.includes(payload.hostname)
-      || (options.expectedAction !== undefined && (!('action' in payload) || payload.action !== options.expectedAction))
-    ) {
-      throw new GuestbookTurnstileError()
+    const payload: any = await response.json()
+    if (typeof payload !== 'object' || payload === null) {
+      throw new GuestbookTurnstileError('Turnstile verification failed: invalid payload format')
+    }
+    if (payload.success !== true) {
+      const errorCodes = Array.isArray(payload['error-codes']) ? payload['error-codes'].join(', ') : 'none'
+      throw new GuestbookTurnstileError(`Turnstile verification failed: success false (error-codes: ${errorCodes})`)
+    }
+    if (typeof payload.hostname !== 'string' || !expectedHostnames.includes(payload.hostname)) {
+      throw new GuestbookTurnstileError(`Turnstile verification failed: hostname mismatch (got ${payload.hostname}, expected ${expectedHostnames.join(', ')})`)
+    }
+    if (options.expectedAction !== undefined && (!('action' in payload) || payload.action !== options.expectedAction)) {
+      throw new GuestbookTurnstileError(`Turnstile verification failed: action mismatch (got ${payload.action}, expected ${options.expectedAction})`)
     }
   } catch (error) {
     if (error instanceof GuestbookTurnstileError) {
       throw error
     }
 
-    throw new GuestbookTurnstileError()
+    throw new GuestbookTurnstileError('Turnstile verification failed: JSON parse error')
   }
 }
 
