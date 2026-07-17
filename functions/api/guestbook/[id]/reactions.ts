@@ -52,14 +52,14 @@ export const onRequestPost: PagesFunction<GuestbookEnv, 'id'> = async (context) 
       context.env.TURNSTILE_SECRET_KEY,
       turnstileOptions(context.env),
     )
-    visitor = await getVisitor(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await enforceRateLimit(context.env, {
-      fingerprintHash: visitor.visitorHash,
+      fingerprintHash: rateIdentity,
       action: 'reaction',
       now: Date.now(),
     })
+    visitor = await getVisitor(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await enforceRateLimit(context.env, {
-      fingerprintHash: rateIdentity,
+      fingerprintHash: visitor.visitorHash,
       action: 'reaction',
       now: Date.now(),
     })

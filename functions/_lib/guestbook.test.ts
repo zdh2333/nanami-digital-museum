@@ -375,6 +375,23 @@ describe('guestbook persistence helpers', () => {
     ])
   })
 
+  it('does not treat an unconfirmed D1 photo-entry batch as committed', async () => {
+    const statement = (sql: string, values: unknown[] = []) => ({
+      sql,
+      values,
+      bind: (...bound: unknown[]) => statement(sql, bound),
+    })
+    const db = {
+      prepare: (sql: string) => statement(sql),
+      batch: async () => [{ success: false }],
+    }
+
+    await expect(createGuestbookPhotoEntry(envWith(db), {
+      id: 'entry-photo', nickname: 'Momo', message: 'Hello', emoji: '🐾',
+      photoKey: 'pending/entry-photo.webp', photoStatus: 'pending', now: 1_700_000_000_000,
+    })).rejects.toThrow('Guestbook photo entry commit was not confirmed')
+  })
+
   it('persists an explicit active reaction and aggregates it in one serialized D1 batch', async () => {
     const { db, queries } = makeReactionDb()
 

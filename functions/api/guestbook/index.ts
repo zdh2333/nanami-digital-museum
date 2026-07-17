@@ -210,6 +210,7 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
   let visitor: GuestbookVisitor | undefined
   let pendingPhotoKey: string | undefined
   let cleanupIntentPending = false
+  let photoEntryCommitStarted = false
 
   try {
     const submission = await parseEntryRequest(context.request)
@@ -221,14 +222,14 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
       turnstileOptions(context.env),
     )
 
-    visitor = await getVisitor(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await enforceRateLimit(context.env, {
-      fingerprintHash: visitor.visitorHash,
+      fingerprintHash: rateIdentity,
       action: 'entry',
       now: Date.now(),
     })
+    visitor = await getVisitor(context.request, context.env.GUESTBOOK_HMAC_KEY)
     await enforceRateLimit(context.env, {
-      fingerprintHash: rateIdentity,
+      fingerprintHash: visitor.visitorHash,
       action: 'entry',
       now: Date.now(),
     })
@@ -253,9 +254,13 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
       photoStatus: photoKey === undefined ? 'none' as const : 'pending' as const,
       now,
     }
-    const entry = photoKey === undefined
-      ? await createGuestbookEntry(context.env, entryInput)
-      : await createGuestbookPhotoEntry(context.env, { ...entryInput, photoKey })
+    let entry
+    if (photoKey === undefined) {
+      entry = await createGuestbookEntry(context.env, entryInput)
+    } else {
+      photoEntryCommitStarted = true
+      entry = await createGuestbookPhotoEntry(context.env, { ...entryInput, photoKey })
+    }
     cleanupIntentPending = false
     const publicEntry = serializePublicEntry(entry, [])
 
@@ -265,7 +270,7 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
       photoUrl: publicEntry.photoUrl,
     }, 201, visitor)
   } catch (error) {
-    if (cleanupIntentPending && pendingPhotoKey !== undefined) {
+    if (cleanupIntentPending && !photoEntryCommitStarted && pendingPhotoKey !== undefined) {
       try {
         await context.env.PHOTOS.delete(pendingPhotoKey)
         await clearPhotoCleanupIntent(context.env, pendingPhotoKey)

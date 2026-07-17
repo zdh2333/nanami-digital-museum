@@ -527,10 +527,13 @@ export async function createGuestbookPhotoEntry(
   input: NewGuestbookEntry & { photoKey: string },
 ): Promise<GuestbookEntryRecord> {
   const entry = buildGuestbookEntry(input)
-  await env.DB.batch([
+  const results = await env.DB.batch([
     guestbookEntryInsertStatement(env, entry),
     env.DB.prepare('DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?').bind(input.photoKey),
   ])
+  if (results.some((result) => result.success !== true)) {
+    throw new Error('Guestbook photo entry commit was not confirmed')
+  }
 
   return entry
 }

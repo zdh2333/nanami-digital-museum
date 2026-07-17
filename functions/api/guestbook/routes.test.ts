@@ -26,6 +26,7 @@ function makeDb(options: {
   entries?: GuestbookRow[]
   rateChanges?: number[]
   photo?: { photo_key: string } | null
+  photoBatchFailure?: 'before' | 'after'
 } = {}) {
   const queries: Query[] = []
   const entries = [...(options.entries ?? [])]
@@ -77,42 +78,55 @@ function makeDb(options: {
   return {
     db: {
       prepare: (sql: string) => statement(sql),
-      batch: async (rawStatements: unknown[]) => rawStatements.map((raw) => {
-        const query = raw as Query
-        queries.push(query)
-        if (query.sql.includes('SELECT id FROM guestbook_entries')) {
-          return { results: [{ id: String(query.values[0]) }], success: true, meta: {} }
+      batch: async (rawStatements: unknown[]) => {
+        const isPhotoEntryBatch = rawStatements.some((raw) => (raw as Query).sql.includes('INSERT INTO guestbook_entries'))
+        if (isPhotoEntryBatch && options.photoBatchFailure === 'before') {
+          throw new Error('D1 photo entry batch result unavailable')
         }
-        if (query.sql.includes('INSERT INTO guestbook_entries')) {
-          entries.push({
-            id: String(query.values[0]),
-            nickname: String(query.values[1]),
-            message: String(query.values[2]),
-            entry_emoji: typeof query.values[3] === 'string' ? query.values[3] : null,
-            photo_key: typeof query.values[4] === 'string' ? query.values[4] : null,
-            photo_status: query.values[5] as GuestbookRow['photo_status'],
-            hidden: 0,
-            created_at: Number(query.values[6]),
-          })
-          return { results: [], success: true, meta: { changes: 1 } }
+
+        const results = rawStatements.map((raw) => {
+          const query = raw as Query
+          queries.push(query)
+          if (query.sql.includes('SELECT id FROM guestbook_entries')) {
+            return { results: [{ id: String(query.values[0]) }], success: true, meta: {} }
+          }
+          if (query.sql.includes('INSERT INTO guestbook_entries')) {
+            entries.push({
+              id: String(query.values[0]),
+              nickname: String(query.values[1]),
+              message: String(query.values[2]),
+              entry_emoji: typeof query.values[3] === 'string' ? query.values[3] : null,
+              photo_key: typeof query.values[4] === 'string' ? query.values[4] : null,
+              photo_status: query.values[5] as GuestbookRow['photo_status'],
+              hidden: 0,
+              created_at: Number(query.values[6]),
+            })
+            return { results: [], success: true, meta: { changes: 1 } }
+          }
+          if (query.sql.includes('DELETE FROM guestbook_photo_cleanup')) {
+            return { results: [], success: true, meta: { changes: 1 } }
+          }
+          if (query.sql.includes('INSERT INTO guestbook_reactions')) {
+            reactions.add(`${query.values[0]}:${query.values[1]}:${query.values[2]}`)
+            return { results: [], success: true, meta: { changes: 1 } }
+          }
+          if (query.sql.includes('DELETE FROM guestbook_reactions')) {
+            reactions.delete(`${query.values[0]}:${query.values[1]}:${query.values[2]}`)
+            return { results: [], success: true, meta: { changes: 1 } }
+          }
+          if (query.sql.includes('COUNT(*) AS total')) {
+            const total = [...reactions].filter((value) => value.endsWith(`:${query.values[1]}`)).length
+            return { results: [{ total }], success: true, meta: {} }
+          }
+          throw new Error(`Unexpected D1 batch statement: ${query.sql}`)
+        })
+
+        if (isPhotoEntryBatch && options.photoBatchFailure === 'after') {
+          throw new Error('D1 photo entry batch response lost after commit')
         }
-        if (query.sql.includes('DELETE FROM guestbook_photo_cleanup')) {
-          return { results: [], success: true, meta: { changes: 1 } }
-        }
-        if (query.sql.includes('INSERT INTO guestbook_reactions')) {
-          reactions.add(`${query.values[0]}:${query.values[1]}:${query.values[2]}`)
-          return { results: [], success: true, meta: { changes: 1 } }
-        }
-        if (query.sql.includes('DELETE FROM guestbook_reactions')) {
-          reactions.delete(`${query.values[0]}:${query.values[1]}:${query.values[2]}`)
-          return { results: [], success: true, meta: { changes: 1 } }
-        }
-        if (query.sql.includes('COUNT(*) AS total')) {
-          const total = [...reactions].filter((value) => value.endsWith(`:${query.values[1]}`)).length
-          return { results: [{ total }], success: true, meta: {} }
-        }
-        throw new Error(`Unexpected D1 batch statement: ${query.sql}`)
-      }),
+
+        return results
+      },
     },
     entries,
     queries,
@@ -274,6 +288,68 @@ describe('guestbook Pages Functions', () => {
     expect(db.entries).toEqual([])
   })
 
+  it('does not delete R2 when a photo-entry batch response is lost after the entry commit', async () => {
+    const db = makeDb({ photoBatchFailure: 'after' })
+    const put = vi.fn(async () => null)
+    const remove = vi.fn(async () => undefined)
+    const sanitizer = { fetch: vi.fn(async () => new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+      status: 200,
+      headers: { 'content-type': 'image/webp' },
+    })) }
+    vi.stubGlobal('fetch', successfulTurnstile())
+    const photoBytes = new Uint8Array([0xff, 0xd8, 0xff, 0x01])
+    const photo = {
+      name: 'nanami.jpg', type: 'image/jpeg', size: photoBytes.byteLength,
+      arrayBuffer: async () => photoBytes.buffer.slice(0),
+    }
+
+    const response = await createGuestbook(pagesContext(entryRequest({
+      nickname: 'Momo', message: 'Hello', emoji: '', 'cf-turnstile-response': 'valid-token',
+    }, photo), makeEnv({
+      db: db.db,
+      sanitizer: sanitizer as unknown as Fetcher,
+      photos: { put, delete: remove } as unknown as R2Bucket,
+    })))
+
+    expect(response.status).toBe(500)
+    expect(db.entries).toHaveLength(1)
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('leaves the cleanup intent for the private cleaner when photo entry commit cannot be confirmed', async () => {
+    const db = makeDb({ photoBatchFailure: 'before' })
+    const put = vi.fn(async () => null)
+    const remove = vi.fn(async () => undefined)
+    const sanitizer = { fetch: vi.fn(async () => new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+      status: 200,
+      headers: { 'content-type': 'image/webp' },
+    })) }
+    vi.stubGlobal('fetch', successfulTurnstile())
+    const photoBytes = new Uint8Array([0xff, 0xd8, 0xff, 0x01])
+    const photo = {
+      name: 'nanami.jpg', type: 'image/jpeg', size: photoBytes.byteLength,
+      arrayBuffer: async () => photoBytes.buffer.slice(0),
+    }
+
+    const response = await createGuestbook(pagesContext(entryRequest({
+      nickname: 'Momo', message: 'Hello', emoji: '', 'cf-turnstile-response': 'valid-token',
+    }, photo), makeEnv({
+      db: db.db,
+      sanitizer: sanitizer as unknown as Fetcher,
+      photos: { put, delete: remove } as unknown as R2Bucket,
+    })))
+
+    expect(response.status).toBe(500)
+    expect(db.entries).toEqual([])
+    expect(remove).not.toHaveBeenCalled()
+    expect(db.queries).toContainEqual(expect.objectContaining({
+      sql: expect.stringContaining('INSERT INTO guestbook_photo_cleanup'),
+    }))
+    expect(db.queries).not.toContainEqual(expect.objectContaining({
+      sql: 'DELETE FROM guestbook_photo_cleanup WHERE photo_key = ?',
+    }))
+  })
+
   it('returns a safe validation error before Turnstile or storage on malformed input', async () => {
     const db = makeDb()
     const turnstile = successfulTurnstile()
@@ -325,7 +401,7 @@ describe('guestbook Pages Functions', () => {
   })
 
   it('blocks an entry after the rate limit has been reached', async () => {
-    const db = makeDb({ rateChanges: [1, 0] })
+    const db = makeDb({ rateChanges: [0] })
     vi.stubGlobal('fetch', successfulTurnstile())
 
     const response = await createGuestbook(pagesContext(entryRequest({
@@ -335,10 +411,12 @@ describe('guestbook Pages Functions', () => {
     expect(response.status).toBe(429)
     await expect(response.json()).resolves.toEqual({ error: 'Too many guestbook actions. Please try again later.' })
     expect(db.entries).toEqual([])
+    expect(response.headers.get('set-cookie')).toBeNull()
+    expect(db.queries.filter(({ sql }) => sql.includes('INSERT INTO guestbook_rate_events'))).toHaveLength(1)
   })
 
   it('shares the server HMAC rate bucket across repeated cookie-less writes', async () => {
-    const db = makeDb({ rateChanges: [1, 1, 1, 1, 1, 1, 1, 0] })
+    const db = makeDb({ rateChanges: [1, 1, 1, 1, 1, 1, 0] })
     vi.stubGlobal('fetch', successfulTurnstile())
 
     const responses: Response[] = []
@@ -351,9 +429,11 @@ describe('guestbook Pages Functions', () => {
     expect(responses.map(({ status }) => status)).toEqual([201, 201, 201, 429])
     expect(db.entries).toHaveLength(3)
     const rateInsertions = db.queries.filter(({ sql }) => sql.includes('INSERT INTO guestbook_rate_events'))
-    const ipFingerprints = rateInsertions.filter((_, index) => index % 2 === 1).map(({ values }) => values[0])
-    expect(rateInsertions).toHaveLength(8)
+    const ipFingerprints = rateInsertions.filter((_, index) => index % 2 === 0).map(({ values }) => values[0])
+    const cookieFingerprints = rateInsertions.filter((_, index) => index % 2 === 1).map(({ values }) => values[0])
+    expect(rateInsertions).toHaveLength(7)
     expect(new Set(ipFingerprints)).toEqual(new Set([ipFingerprints[0]]))
+    expect(new Set(cookieFingerprints)).toHaveLength(3)
     expect(db.queries.flatMap(({ values }) => values)).not.toContain('203.0.113.44')
   })
 
@@ -432,6 +512,22 @@ describe('guestbook Pages Functions', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('set-cookie')).toContain('HttpOnly')
     await expect(response.json()).resolves.toEqual({ entryId: 'entry-1', emoji: '🖤', active: true, total: 1 })
+  })
+
+  it('blocks a reaction on the server rate bucket before creating a visitor cookie bucket', async () => {
+    const db = makeDb({ rateChanges: [0] })
+    vi.stubGlobal('fetch', successfulTurnstile())
+    const request = new Request('https://nanamicat.com/api/guestbook/entry-1/reactions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.44' },
+      body: JSON.stringify({ emoji: '🖤', active: true, 'cf-turnstile-response': 'valid-token' }),
+    })
+
+    const response = await setReaction(pagesContext(request, makeEnv({ db: db.db }), { id: 'entry-1' }))
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('set-cookie')).toBeNull()
+    expect(db.queries.filter(({ sql }) => sql.includes('INSERT INTO guestbook_rate_events'))).toHaveLength(1)
   })
 
   it.each([
