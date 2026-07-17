@@ -1,5 +1,6 @@
-# This Pages configuration is intentionally resource-safe: Task 7 replaces the
-# D1 placeholder with the real ID after the account resource exists.
+# Downloaded Pages settings were reviewed against the existing project before
+# adding guestbook-only bindings. The project name and custom domains remain
+# unchanged in Cloudflare Pages.
 name = "nanami-digital-museum"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-07-17"
@@ -7,7 +8,7 @@ compatibility_date = "2026-07-17"
 [[d1_databases]]
 binding = "DB"
 database_name = "nanami-guestbook"
-database_id = "REPLACE_WITH_NANAMI_GUESTBOOK_D1_DATABASE_ID"
+database_id = "f5e228bb-8bfa-43e6-980c-70bdf4d1dbd0"
 migrations_dir = "./migrations"
 
 [[r2_buckets]]
@@ -19,5 +20,8 @@ binding = "IMAGE_SANITIZER"
 service = "nanami-image-sanitizer"
 
 [vars]
+# This is a public Turnstile site key, intentionally committed so the Vite
+# production build can render the widget. It is not a server credential.
+VITE_TURNSTILE_SITE_KEY = "0x4AAAAAAD34l0QAtjJvwGlX"
 TURNSTILE_EXPECTED_HOSTNAME = "nanamicat.com"
 TURNSTILE_EXPECTED_ACTION = "guestbook-write"
