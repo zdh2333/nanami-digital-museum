@@ -6,8 +6,8 @@ import {
   enforceRateLimit,
   getVisitor,
   listPublicGuestbookEntries,
+  setGuestbookReaction,
   serializePublicEntry,
-  toggleGuestbookReaction,
   verifyTurnstile,
   type GuestbookEntryRecord,
   type GuestbookStorageEnv,
@@ -53,7 +53,51 @@ function makeDb(options: {
   }
 }
 
-function envWith(db: ReturnType<typeof makeDb>['db']): GuestbookStorageEnv {
+function makeReactionDb() {
+  const queries: Query[] = []
+  const reactions = new Set<string>()
+
+  const statement = (sql: string, values: unknown[] = []) => ({
+    sql,
+    values,
+    bind: (...bound: unknown[]) => statement(sql, bound),
+  })
+
+  return {
+    db: {
+      prepare: (sql: string) => statement(sql),
+      batch: async (statements: unknown[]) => statements.map((rawStatement) => {
+        const query = rawStatement as Query
+        queries.push(query)
+
+        if (query.sql.includes('SELECT id FROM guestbook_entries')) {
+          return { results: [{ id: 'entry-1' }], success: true, meta: {} }
+        }
+
+        const key = `${query.values[0]}:${query.values[1]}:${query.values[2]}`
+        if (query.sql.includes('INSERT INTO guestbook_reactions')) {
+          reactions.add(key)
+          return { results: [], success: true, meta: { changes: 1 } }
+        }
+
+        if (query.sql.includes('DELETE FROM guestbook_reactions')) {
+          reactions.delete(key)
+          return { results: [], success: true, meta: { changes: 1 } }
+        }
+
+        if (query.sql.includes('COUNT(*) AS total')) {
+          const total = [...reactions].filter((reaction) => reaction.endsWith(`:${query.values[1]}`)).length
+          return { results: [{ total }], success: true, meta: {} }
+        }
+
+        throw new Error(`Unexpected SQL in reaction mock: ${query.sql}`)
+      }),
+    },
+    queries,
+  }
+}
+
+function envWith(db: unknown): GuestbookStorageEnv {
   return {
     DB: db as unknown as GuestbookStorageEnv['DB'],
     PHOTOS: {} as GuestbookStorageEnv['PHOTOS'],
@@ -135,7 +179,7 @@ describe('guestbook persistence helpers', () => {
     ['entry', 3],
     ['reaction', 24],
   ] as const)('blocks a %s when the ten-minute window has reached its limit', async (action, limit) => {
-    const { db, queries } = makeDb({ changes: [0] })
+    const { db, queries } = makeDb({ changes: [1, 0] })
 
     await expect(enforceRateLimit(envWith(db), {
       fingerprintHash: 'hmac-only-fingerprint',
@@ -143,17 +187,21 @@ describe('guestbook persistence helpers', () => {
       now: 1_700_000_000_000,
     })).rejects.toThrow('Too many guestbook actions')
 
-    expect(queries).toHaveLength(1)
-    expect(queries[0].sql).toContain('SELECT COUNT(*)')
-    expect(queries[0].values).toEqual([
+    expect(queries).toHaveLength(2)
+    expect(queries[0]).toMatchObject({
+      sql: expect.stringContaining('DELETE FROM guestbook_rate_events'),
+      values: [1_699_999_400_000],
+    })
+    expect(queries[1].sql).toContain('SELECT COUNT(*)')
+    expect(queries[1].values).toEqual([
       'hmac-only-fingerprint', action, 1_700_000_000_000,
       'hmac-only-fingerprint', action, 1_699_999_400_000, limit,
     ])
-    expect(queries[0].values).not.toContain('raw-browser-token')
+    expect(queries.flatMap(({ values }) => values)).not.toContain('raw-browser-token')
   })
 
-  it('records a rate event after allowing an action inside the active ten-minute window', async () => {
-    const { db, queries } = makeDb({ changes: [1] })
+  it('purges expired rate events before recording an allowed action inside the active ten-minute window', async () => {
+    const { db, queries } = makeDb({ changes: [1, 1] })
 
     await expect(enforceRateLimit(envWith(db), {
       fingerprintHash: 'hmac-only-fingerprint',
@@ -161,8 +209,12 @@ describe('guestbook persistence helpers', () => {
       now: 1_700_000_000_000,
     })).resolves.toBeUndefined()
 
-    expect(queries).toHaveLength(1)
+    expect(queries).toHaveLength(2)
     expect(queries[0]).toMatchObject({
+      sql: expect.stringContaining('DELETE FROM guestbook_rate_events'),
+      values: [1_699_999_400_000],
+    })
+    expect(queries[1]).toMatchObject({
       values: [
         'hmac-only-fingerprint', 'entry', 1_700_000_000_000,
         'hmac-only-fingerprint', 'entry', 1_699_999_400_000, 3,
@@ -174,7 +226,7 @@ describe('guestbook persistence helpers', () => {
     const requests: Request[] = []
     await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', async (input, init) => {
       requests.push(new Request(input, init))
-      return Response.json({ success: true })
+      return Response.json({ success: true, hostname: 'nanamicat.com' })
     })).resolves.toBeUndefined()
 
     const request = requests[0]
@@ -184,12 +236,34 @@ describe('guestbook persistence helpers', () => {
   })
 
   it.each([
-    ['', 'turnstile-secret', Response.json({ success: true })],
-    ['turnstile-response', '', Response.json({ success: true })],
+    ['', 'turnstile-secret', Response.json({ success: true, hostname: 'nanamicat.com' })],
+    ['turnstile-response', '', Response.json({ success: true, hostname: 'nanamicat.com' })],
     ['turnstile-response', 'turnstile-secret', Response.json({ success: false })],
     ['turnstile-response', 'turnstile-secret', new Response('unavailable', { status: 503 })],
   ])('fails closed when Turnstile cannot verify a token', async (token, secret, response) => {
     await expect(verifyTurnstile(token, secret, async () => response)).rejects.toThrow('Turnstile verification failed')
+  })
+
+  it.each([
+    [{ success: true, hostname: 'preview.nanamicat.pages.dev' }, {}],
+    [{ success: true, hostname: 'nanamicat.com', action: 'write' }, { expectedAction: 'react' }],
+  ])('fails closed when Turnstile hostname or configured action does not match', async (payload, options) => {
+    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
+      ...options,
+      fetchImplementation: async () => Response.json(payload),
+    })).rejects.toThrow('Turnstile verification failed')
+  })
+
+  it('accepts a configured hostname and action only when both match Siteverify', async () => {
+    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
+      expectedHostname: 'preview.nanamicat.pages.dev',
+      expectedAction: 'guestbook-write',
+      fetchImplementation: async () => Response.json({
+        success: true,
+        hostname: 'preview.nanamicat.pages.dev',
+        action: 'guestbook-write',
+      }),
+    })).resolves.toBeUndefined()
   })
 
   it('uses a bound keyset cursor, a page size of 12, and public-only entries', async () => {
@@ -252,41 +326,42 @@ describe('guestbook persistence helpers', () => {
     expect(queries[0].values.join(' ')).not.toContain('visitor')
   })
 
-  it('toggles one reaction per HMAC visitor and emoji by relying on the D1 uniqueness key', async () => {
-    const { db, queries } = makeDb({
-      firstRows: [{ id: 'entry-1' }, { total: 1 }],
-      changes: [1],
-    })
+  it('persists an explicit active reaction and aggregates it in one serialized D1 batch', async () => {
+    const { db, queries } = makeReactionDb()
 
-    await expect(toggleGuestbookReaction(envWith(db), {
+    await expect(setGuestbookReaction(envWith(db), {
       entryId: 'entry-1',
       visitorHash: 'hmac-visitor-only',
       emoji: '🐾',
+      active: true,
       now: 1_700_000_000_000,
     })).resolves.toEqual({ active: true, total: 1 })
 
-    expect(queries.map(({ sql }) => sql)).toEqual([
-      expect.stringContaining('WHERE id = ? AND hidden = 0'),
-      expect.stringContaining('ON CONFLICT(entry_id, visitor_hash, emoji) DO NOTHING'),
-      expect.stringContaining('COUNT(*) AS total'),
+    expect(queries).toEqual([
+      expect.objectContaining({ sql: expect.stringContaining('WHERE id = ? AND hidden = 0') }),
+      expect.objectContaining({ sql: expect.stringContaining('ON CONFLICT(entry_id, visitor_hash, emoji) DO NOTHING') }),
+      expect.objectContaining({ sql: expect.stringContaining('COUNT(*) AS total') }),
     ])
-    expect(queries[1].values).toEqual(['entry-1', 'hmac-visitor-only', '🐾', 1_700_000_000_000])
   })
 
-  it('removes the exact existing reaction when the unique reaction key already exists', async () => {
-    const { db, queries } = makeDb({
-      firstRows: [{ id: 'entry-1' }, { total: 0 }],
-      changes: [0, 1],
-    })
-
-    await expect(toggleGuestbookReaction(envWith(db), {
+  it('makes concurrent or retried requested states idempotent with consistent active/count pairs', async () => {
+    const { db } = makeReactionDb()
+    const input = {
       entryId: 'entry-1',
       visitorHash: 'hmac-visitor-only',
-      emoji: '🖤',
+      emoji: '🖤' as const,
+      active: true,
       now: 1_700_000_000_000,
-    })).resolves.toEqual({ active: false, total: 0 })
+    }
 
-    expect(queries[2].sql).toContain('DELETE FROM guestbook_reactions')
-    expect(queries[2].values).toEqual(['entry-1', 'hmac-visitor-only', '🖤'])
+    await expect(Promise.all([
+      setGuestbookReaction(envWith(db), input),
+      setGuestbookReaction(envWith(db), input),
+    ])).resolves.toEqual([
+      { active: true, total: 1 },
+      { active: true, total: 1 },
+    ])
+
+    await expect(setGuestbookReaction(envWith(db), { ...input, active: false })).resolves.toEqual({ active: false, total: 0 })
   })
 })

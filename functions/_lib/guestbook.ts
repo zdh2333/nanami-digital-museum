@@ -14,6 +14,8 @@ export interface GuestbookEnv {
   PHOTOS: R2Bucket
   IMAGE_SANITIZER: Fetcher
   TURNSTILE_SECRET_KEY: string
+  TURNSTILE_EXPECTED_HOSTNAME?: string
+  TURNSTILE_EXPECTED_ACTION?: string
   GUESTBOOK_HMAC_KEY: string
 }
 
@@ -70,10 +72,11 @@ export interface NewGuestbookEntry {
   now: number
 }
 
-export interface ToggleGuestbookReactionInput {
+export interface SetGuestbookReactionInput {
   entryId: string
   visitorHash: string
   emoji: GuestbookEmoji
+  active: boolean
   now: number
 }
 
@@ -252,6 +255,10 @@ export async function enforceRateLimit(
   input: { fingerprintHash: string; action: GuestbookRateAction; now: number },
 ): Promise<void> {
   const windowStart = getRateWindowStart(input.now)
+  await env.DB.prepare(
+    'DELETE FROM guestbook_rate_events WHERE created_at < ?',
+  ).bind(windowStart).run()
+
   const inserted = await env.DB.prepare(
     `INSERT INTO guestbook_rate_events (fingerprint_hash, action, created_at)
      SELECT ?, ?, ?
@@ -456,41 +463,56 @@ export async function createGuestbookEntry(
   return entry
 }
 
-export async function toggleGuestbookReaction(
+export async function setGuestbookReaction(
   env: Pick<GuestbookEnv, 'DB'>,
-  input: ToggleGuestbookReactionInput,
+  input: SetGuestbookReactionInput,
 ): Promise<{ active: boolean; total: number }> {
-  const entry = await env.DB.prepare(
+  const entryCheck = env.DB.prepare(
     'SELECT id FROM guestbook_entries WHERE id = ? AND hidden = 0',
-  ).bind(input.entryId).first<{ id: string }>()
-  if (entry === null) {
-    throw new GuestbookNotFoundError()
-  }
-
-  const inserted = await env.DB.prepare(
-    `INSERT INTO guestbook_reactions (entry_id, visitor_hash, emoji, created_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(entry_id, visitor_hash, emoji) DO NOTHING`,
-  ).bind(input.entryId, input.visitorHash, input.emoji, input.now).run()
-  const active = Number(inserted.meta.changes ?? 0) === 1
-
-  if (!active) {
-    await env.DB.prepare(
+  ).bind(input.entryId)
+  const mutation = input.active
+    ? env.DB.prepare(
+      `INSERT INTO guestbook_reactions (entry_id, visitor_hash, emoji, created_at)
+       SELECT ?, ?, ?, ?
+       WHERE EXISTS (
+         SELECT 1 FROM guestbook_entries WHERE id = ? AND hidden = 0
+       )
+       ON CONFLICT(entry_id, visitor_hash, emoji) DO NOTHING`,
+    ).bind(input.entryId, input.visitorHash, input.emoji, input.now, input.entryId)
+    : env.DB.prepare(
       `DELETE FROM guestbook_reactions
-       WHERE entry_id = ? AND visitor_hash = ? AND emoji = ?`,
-    ).bind(input.entryId, input.visitorHash, input.emoji).run()
-  }
-
-  const totalRow = await env.DB.prepare(
+       WHERE entry_id = ? AND visitor_hash = ? AND emoji = ?
+       AND EXISTS (
+         SELECT 1 FROM guestbook_entries WHERE id = ? AND hidden = 0
+       )`,
+    ).bind(input.entryId, input.visitorHash, input.emoji, input.entryId)
+  const totalQuery = env.DB.prepare(
     `SELECT COUNT(*) AS total
      FROM guestbook_reactions
      WHERE entry_id = ? AND emoji = ?`,
-  ).bind(input.entryId, input.emoji).first<CountRow>()
+  ).bind(input.entryId, input.emoji)
+  const [entryResult, , totalResult] = await env.DB.batch([
+    entryCheck,
+    mutation,
+    totalQuery,
+  ])
 
-  return { active, total: countFromRow(totalRow) }
+  if ((entryResult.results ?? []).length === 0) {
+    throw new GuestbookNotFoundError()
+  }
+
+  const totalRow = (totalResult.results?.[0] ?? null) as CountRow | null
+
+  return { active: input.active, total: countFromRow(totalRow) }
 }
 
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+export interface TurnstileVerificationOptions {
+  expectedHostname?: string
+  expectedAction?: string
+  fetchImplementation?: FetchImplementation
+}
 
 /**
  * Verifies a Turnstile token without forwarding or recording an IP address.
@@ -498,11 +520,17 @@ type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Pro
 export async function verifyTurnstile(
   token: unknown,
   secret: string,
-  fetchImplementation: FetchImplementation = fetch,
+  configuration: TurnstileVerificationOptions | FetchImplementation = {},
 ): Promise<void> {
   if (typeof token !== 'string' || token.trim() === '' || secret.trim() === '') {
     throw new GuestbookTurnstileError()
   }
+
+  const options = typeof configuration === 'function'
+    ? { fetchImplementation: configuration }
+    : configuration
+  const expectedHostname = options.expectedHostname ?? 'nanamicat.com'
+  const fetchImplementation = options.fetchImplementation ?? fetch
 
   let response: Response
   try {
@@ -521,7 +549,15 @@ export async function verifyTurnstile(
 
   try {
     const payload: unknown = await response.json()
-    if (typeof payload !== 'object' || payload === null || !('success' in payload) || payload.success !== true) {
+    if (
+      typeof payload !== 'object'
+      || payload === null
+      || !('success' in payload)
+      || !('hostname' in payload)
+      || payload.success !== true
+      || payload.hostname !== expectedHostname
+      || (options.expectedAction !== undefined && (!('action' in payload) || payload.action !== options.expectedAction))
+    ) {
       throw new GuestbookTurnstileError()
     }
   } catch (error) {
