@@ -152,6 +152,8 @@ export interface MuseumCopy {
     posted: string
     verificationUnavailable: string
     verificationRequired: string
+    reactionVerificationPending: string
+    reactionVerificationFailed: string
     formatReactionLabel: (emoji: string, active: boolean) => string
     formatDate: (createdAt: number) => string
   }
@@ -304,6 +306,8 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       posted: 'Your pawprint is now in the guestbook.',
       verificationUnavailable: 'Verification is unavailable. Please try again later.',
       verificationRequired: 'Complete verification before posting.',
+      reactionVerificationPending: 'Complete verification to add this reaction.',
+      reactionVerificationFailed: 'Reaction verification was not completed. Try again.',
       formatReactionLabel: (emoji, active) => `${active ? 'Remove' : 'Add'} ${emoji} reaction`,
       formatDate: (createdAt) => new Intl.DateTimeFormat('en', {
         month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Tokyo',
@@ -449,6 +453,8 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       posted: '你的猫爪印已经留在留言簿里。',
       verificationUnavailable: '验证暂时不可用，请稍后再试。',
       verificationRequired: '请先完成验证，再发布留言。',
+      reactionVerificationPending: '请完成验证后再添加这条反应。',
+      reactionVerificationFailed: '反应验证未完成，请再试一次。',
       formatReactionLabel: (emoji, active) => `${active ? '取消' : '添加'} ${emoji} 反应`,
       formatDate: (createdAt) => new Intl.DateTimeFormat('zh-CN', {
         year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Tokyo',

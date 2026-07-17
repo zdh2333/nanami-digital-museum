@@ -244,6 +244,28 @@ test.describe('local Cloudflare Pages guestbook integration', () => {
     expect(failures).toEqual([])
   })
 
+  test('lets a fresh reader verify and add a reaction without filling out the compose form', async ({ page }) => {
+    const entryId = `${fixturePrefix}freshreaderreaction`
+    seedGuestbookEntries([{
+      id: entryId,
+      nickname: 'Reader fixture',
+      message: 'A reaction without a compose draft.',
+      createdAt: 1_900_000_000_300,
+    }])
+    await page.setExtraHTTPHeaders({ 'cf-connecting-ip': '203.0.113.95' })
+    await mockTurnstile(page)
+    await page.goto('/#guestbook')
+
+    const entry = page.getByText('A reaction without a compose draft.', { exact: true })
+    const card = entry.locator('xpath=ancestor::article')
+    await expect(card.getByRole('button', { name: 'Add 🖤 reaction' })).toBeVisible()
+    await card.getByRole('button', { name: 'Add 🖤 reaction' }).click()
+
+    await expect(card.getByRole('button', { name: 'Remove 🖤 reaction' })).toContainText('🖤 1')
+    await expect(page.getByLabel('Nickname')).toHaveValue('')
+    await expect(page.getByLabel('Message')).toHaveValue('')
+  })
+
   test('keeps a rejected local photo draft intact and exposes an accessible verification failure state', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 })
     await page.setExtraHTTPHeaders({ 'cf-connecting-ip': '203.0.113.91' })

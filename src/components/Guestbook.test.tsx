@@ -16,6 +16,7 @@ const currentEntry = {
 }
 
 let issueTurnstileToken: ((token: string) => void) | undefined
+let failTurnstileVerification: (() => void) | undefined
 
 function renderGuestbook(locale: 'en' | 'zh-CN' = 'en') {
   localStorage.setItem('nanami-locale', locale)
@@ -30,6 +31,7 @@ beforeEach(() => {
     value: {
       render: vi.fn((_element: HTMLElement, options: { callback: (token: string) => void }) => {
         issueTurnstileToken = options.callback
+        failTurnstileVerification = undefined
         options.callback('turnstile-token')
         return 'widget-id'
       }),
@@ -149,6 +151,77 @@ describe('Guestbook', () => {
 
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello Nanami' } })
     await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
+  })
+
+  it('verifies a fresh reader reaction before posting it without a compose draft', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ entries: [currentEntry], nextCursor: null }))
+      .mockResolvedValueOnce(Response.json({
+        entryId: 'entry-1', emoji: '🖤', active: true, total: 1,
+      }))
+    vi.stubGlobal('fetch', fetch)
+    Object.defineProperty(window, 'turnstile', {
+      configurable: true,
+      value: {
+        render: vi.fn((_element: HTMLElement, options: {
+          callback: (token: string) => void
+          'expired-callback': () => void
+        }) => {
+          issueTurnstileToken = options.callback
+          failTurnstileVerification = options['expired-callback']
+          return 'reaction-widget-id'
+        }),
+        reset: vi.fn(),
+        remove: vi.fn(),
+      },
+    })
+    renderGuestbook()
+
+    const entry = await screen.findByText('Hello Nanami')
+    const card = entry.closest('article') as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: 'Add 🖤 reaction' }))
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Complete verification to add this reaction.')).toHaveAttribute('role', 'status')
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
+
+    await act(async () => issueTurnstileToken?.('reaction-token'))
+
+    expect(await within(card).findByText('🖤 1')).toBeVisible()
+    expect(fetch).toHaveBeenLastCalledWith('/api/guestbook/entry-1/reactions', expect.objectContaining({
+      body: JSON.stringify({ emoji: '🖤', active: true, 'cf-turnstile-response': 'reaction-token' }),
+    }))
+  })
+
+  it('keeps a fresh reader reaction client-side when its dedicated verification fails', async () => {
+    const fetch = vi.fn(async () => Response.json({ entries: [currentEntry], nextCursor: null }))
+    vi.stubGlobal('fetch', fetch)
+    Object.defineProperty(window, 'turnstile', {
+      configurable: true,
+      value: {
+        render: vi.fn((_element: HTMLElement, options: {
+          callback: (token: string) => void
+          'expired-callback': () => void
+        }) => {
+          issueTurnstileToken = options.callback
+          failTurnstileVerification = options['expired-callback']
+          return 'reaction-widget-id'
+        }),
+        reset: vi.fn(),
+        remove: vi.fn(),
+      },
+    })
+    renderGuestbook()
+
+    const entry = await screen.findByText('Hello Nanami')
+    const card = entry.closest('article') as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: 'Add 🖤 reaction' }))
+    await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledTimes(1))
+    await act(async () => failTurnstileVerification?.())
+
+    expect(await screen.findByText('Reaction verification was not completed. Try again.')).toHaveAttribute('role', 'alert')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(within(card).getByRole('button', { name: 'Add 🖤 reaction' })).not.toBeDisabled()
   })
 
   it('localizes the chapter, navigation target copy, and 44px control affordances', async () => {
