@@ -28,7 +28,7 @@ function createImagesBinding(outputError?: Error) {
           calls.push(['transform', options])
           return this
         },
-        async output(options: { format: 'image/webp' }) {
+        async output(options: { format: 'image/webp', quality: 82 }) {
           calls.push(['output', options])
 
           if (outputError) {
@@ -67,7 +67,7 @@ describe('Nanami image sanitizer', () => {
     expect(await images.inputPayloads[0]).toEqual(new Uint8Array(validJpegBytes))
     expect(images.calls).toEqual([
       ['transform', { width: 1600, height: 1600, fit: 'scale-down', metadata: 'none' }],
-      ['output', { format: 'image/webp' }],
+      ['output', { format: 'image/webp', quality: 82 }],
     ])
     expect(response.headers.get('content-type')).toBe('image/webp')
     expect(await response.bytes()).toEqual(new Uint8Array(sanitizedWebpBytes))

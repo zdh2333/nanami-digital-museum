@@ -85,7 +85,7 @@ export async function sanitizeImage(bytes: ArrayBuffer, images: ImagesBinding): 
   const output = await images
     .input(toReadableStream(bytes))
     .transform(transformOptions)
-    .output({ format: 'image/webp' })
+    .output({ format: 'image/webp', quality: 82 })
 
   const response = output.response()
   if (!response.ok) {
