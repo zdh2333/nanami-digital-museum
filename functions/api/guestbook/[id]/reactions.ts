@@ -3,16 +3,13 @@ import {
   getRateIdentity,
   getVisitor,
   setGuestbookReaction,
-  verifyTurnstile,
   type GuestbookEnv,
   type GuestbookVisitor,
 } from '../../../_lib/guestbook'
 import {
-  getTurnstileToken,
   guestbookError,
   guestbookJson,
   plainJsonRecord,
-  turnstileOptions,
   validGuestbookEntryId,
 } from '../../../_lib/http'
 import { isReactionEmoji } from '../../../../src/guestbook/contracts'
@@ -47,11 +44,6 @@ export const onRequestPost: PagesFunction<GuestbookEnv, 'id'> = async (context) 
 
     const rateIdentity = await getRateIdentity(context.request, context.env.GUESTBOOK_HMAC_KEY)
 
-    await verifyTurnstile(
-      getTurnstileToken(payload),
-      context.env.TURNSTILE_SECRET_KEY,
-      turnstileOptions(context.env),
-    )
     await enforceRateLimit(context.env, {
       fingerprintHash: rateIdentity,
       action: 'reaction',

@@ -44,13 +44,13 @@ describe('guestbook browser client', () => {
 
     const photo = new File(['cat'], 'nanami.webp', { type: 'image/webp' })
     await expect(createGuestbookEntry({
-      nickname: 'Momo', message: 'Hello Nanami', emoji: '🐾', photo, turnstileToken: 'token',
+      nickname: 'Momo', message: 'Hello Nanami', emoji: '🐾', photo,
     })).resolves.toEqual({ entry, photoStatus: 'pending', photoUrl: null })
 
     const [, init] = fetch.mock.calls[0]! as unknown as [string, RequestInit]
     expect(init.method).toBe('POST')
     expect(init.body).toBeInstanceOf(FormData)
-    expect((init.body as FormData).get('cf-turnstile-response')).toBe('token')
+    expect((init.body as FormData).get('cf-turnstile-response')).toBeNull()
     expect((init.body as FormData).get('photo')).toBe(photo)
   })
 
@@ -61,7 +61,7 @@ describe('guestbook browser client', () => {
     vi.stubGlobal('fetch', fetch)
 
     await expect(toggleReaction({
-      entryId: 'entry-1', emoji: '🖤', active: true, turnstileToken: 'token',
+      entryId: 'entry-1', emoji: '🖤', active: true,
     })).resolves.toEqual({ entryId: 'entry-1', emoji: '🖤', active: true, total: 3 })
     expect(fetch).toHaveBeenCalledWith('/api/guestbook/entry-1/reactions', expect.objectContaining({
       method: 'POST',

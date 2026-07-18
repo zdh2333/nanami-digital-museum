@@ -6,25 +6,6 @@ import {
 
 export const GUESTBOOK_VISITOR_COOKIE = 'nanami_guestbook_visitor'
 
-// Cloudflare documents this public dummy secret for local integration tests.
-// It has no production authority and can validate only the test widget.
-export const TURNSTILE_TEST_SECRET_KEY = '1x0000000000000000000000000000000AA'
-export const TURNSTILE_TEST_HOSTNAMES = ['example.com'] as const
-
-export const NANAMI_TURNSTILE_HOSTNAMES = [
-  'nanamicat.com',
-  'www.nanamicat.com',
-  'nanami-digital-museum.pages.dev',
-] as const
-
-export function isNanamiTurnstileHostnameSet(hostnames: readonly string[]): boolean {
-  return hostnames.length === NANAMI_TURNSTILE_HOSTNAMES.length
-    && new Set(hostnames).size === NANAMI_TURNSTILE_HOSTNAMES.length
-    && hostnames.every((hostname) => (
-      (NANAMI_TURNSTILE_HOSTNAMES as readonly string[]).includes(hostname)
-    ))
-}
-
 export type GuestbookPhotoStatus = 'none' | 'pending' | 'approved' | 'rejected'
 export type GuestbookRateAction = 'entry' | 'reaction'
 
@@ -32,9 +13,6 @@ export interface GuestbookEnv {
   DB: D1Database
   PHOTOS: R2Bucket
   IMAGE_SANITIZER: Fetcher
-  TURNSTILE_SECRET_KEY: string
-  TURNSTILE_EXPECTED_HOSTNAMES?: string
-  TURNSTILE_EXPECTED_ACTION?: string
   GUESTBOOK_HMAC_KEY: string
 }
 
@@ -129,13 +107,6 @@ export class GuestbookCursorError extends Error {
   constructor() {
     super('Invalid guestbook cursor')
     this.name = 'GuestbookCursorError'
-  }
-}
-
-export class GuestbookTurnstileError extends Error {
-  constructor(message = 'Turnstile verification failed') {
-    super(message)
-    this.name = 'GuestbookTurnstileError'
   }
 }
 
@@ -599,27 +570,3 @@ export async function setGuestbookReaction(
 
   return { active: input.active, total: countFromRow(totalRow) }
 }
-
-type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
-export interface TurnstileVerificationOptions {
-  expectedHostnames?: readonly string[]
-  expectedAction?: string
-  fetchImplementation?: FetchImplementation
-}
-
-/**
- * Verifies a Turnstile token without forwarding or recording an IP address.
- */
-export async function verifyTurnstile(
-  token: unknown,
-  secret: string,
-  configuration: TurnstileVerificationOptions | FetchImplementation = {},
-): Promise<void> {
-  // Verification is disabled to allow users in regions where Cloudflare challenges are blocked (e.g. Mainland China)
-  return
-}
-
-/**
- * Verifies a Turnstile token without forwarding or recording an IP address.
- */

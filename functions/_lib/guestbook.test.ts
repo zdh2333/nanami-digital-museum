@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  TURNSTILE_TEST_SECRET_KEY,
   createGuestbookEntry,
   createGuestbookPhotoEntry,
   decodeGuestbookCursor,
@@ -11,7 +10,6 @@ import {
   listPublicGuestbookEntries,
   setGuestbookReaction,
   serializePublicEntry,
-  verifyTurnstile,
   type GuestbookEntryRecord,
   type GuestbookStorageEnv,
 } from './guestbook'
@@ -105,7 +103,6 @@ function envWith(db: unknown): GuestbookStorageEnv {
     DB: db as unknown as GuestbookStorageEnv['DB'],
     PHOTOS: {} as GuestbookStorageEnv['PHOTOS'],
     IMAGE_SANITIZER: {} as GuestbookStorageEnv['IMAGE_SANITIZER'],
-    TURNSTILE_SECRET_KEY: 'turnstile-secret',
     GUESTBOOK_HMAC_KEY: 'guestbook-hmac-secret',
   }
 }
@@ -237,84 +234,6 @@ describe('guestbook persistence helpers', () => {
         'hmac-only-fingerprint', 'entry', 1_699_999_400_000, 3,
       ],
     })
-  })
-
-  it('sends only the Turnstile secret and response token to Siteverify', async () => {
-    const requests: Request[] = []
-    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', async (input, init) => {
-      requests.push(new Request(input, init))
-      return Response.json({ success: true, hostname: 'nanamicat.com' })
-    })).resolves.toBeUndefined()
-
-    const request = requests[0]
-    expect(request?.url).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify')
-    expect(request?.method).toBe('POST')
-    expect(await request?.text()).toBe('secret=turnstile-secret&response=turnstile-response')
-  })
-
-  it.each([
-    ['', 'turnstile-secret', Response.json({ success: true, hostname: 'nanamicat.com' })],
-    ['turnstile-response', '', Response.json({ success: true, hostname: 'nanamicat.com' })],
-    ['turnstile-response', 'turnstile-secret', Response.json({ success: false })],
-    ['turnstile-response', 'turnstile-secret', new Response('unavailable', { status: 503 })],
-  ])('fails closed when Turnstile cannot verify a token', async (token, secret, response) => {
-    await expect(verifyTurnstile(token, secret, async () => response)).rejects.toThrow('Turnstile verification failed')
-  })
-
-  it.each([
-    [{ success: true, hostname: 'preview.nanamicat.pages.dev' }, {}],
-    [{ success: true, hostname: 'nanamicat.com', action: 'write' }, { expectedAction: 'react' }],
-  ])('fails closed when Turnstile hostname or configured action does not match', async (payload, options) => {
-    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
-      ...options,
-      fetchImplementation: async () => Response.json(payload),
-    })).rejects.toThrow('Turnstile verification failed')
-  })
-
-  it.each([
-    'nanamicat.com',
-    'www.nanamicat.com',
-    'nanami-digital-museum.pages.dev',
-  ])('accepts each explicit production hostname only when the action matches Siteverify', async (hostname) => {
-    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
-      expectedHostnames: [
-        'nanamicat.com',
-        'www.nanamicat.com',
-        'nanami-digital-museum.pages.dev',
-      ],
-      expectedAction: 'guestbook-write',
-      fetchImplementation: async () => Response.json({
-        success: true,
-        hostname,
-        action: 'guestbook-write',
-      }),
-    })).resolves.toBeUndefined()
-  })
-
-  it('rejects a lookalike hostname outside the explicit allowlist', async () => {
-    await expect(verifyTurnstile('turnstile-response', 'turnstile-secret', {
-      expectedHostnames: [
-        'nanamicat.com',
-        'www.nanamicat.com',
-        'nanami-digital-museum.pages.dev',
-      ],
-      fetchImplementation: async () => Response.json({
-        success: true,
-        hostname: 'preview.nanamicat.com',
-      }),
-    })).rejects.toThrow('Turnstile verification failed')
-  })
-
-  it('accepts Cloudflare\'s documented local test response only with its dedicated test secret', async () => {
-    await expect(verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX', TURNSTILE_TEST_SECRET_KEY, {
-      expectedHostnames: ['example.com'],
-      fetchImplementation: async () => Response.json({ success: true, hostname: 'example.com' }),
-    })).resolves.toBeUndefined()
-
-    await expect(verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX', 'turnstile-secret', {
-      expectedHostnames: ['example.com'],
-      fetchImplementation: async () => Response.json({ success: true, hostname: 'example.com' }),
-    })).rejects.toThrow('Turnstile verification failed')
   })
 
   it('uses a bound keyset cursor, a page size of 12, and public-only entries', async () => {

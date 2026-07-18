@@ -24,17 +24,10 @@ import {
 } from '../guestbook/validation'
 import { useLocale } from '../i18n/LocaleProvider'
 import { SectionReveal } from './SectionReveal'
-import { TurnstileWidget } from './TurnstileWidget'
-
-// Turnstile site keys are public. Keep the production key available at Vite
-// build time (Pages runtime vars do not rewrite an already-built asset), while
-// `dev:pages` overrides it with Cloudflare's documented local test key.
-const publicTurnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '0x4AAAAAAD34l0QAtjJvwGlX'
 const chapterPhotoIds = ['nanami-photo-019', 'nanami-photo-017', 'nanami-photo-018'] as const
 
 type GuestbookProps = {
   staticExperience: boolean
-  siteKey?: string
 }
 
 type ReactionIntent = {
@@ -82,7 +75,7 @@ function updateReaction(
   })
 }
 
-export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }: GuestbookProps) {
+export function Guestbook({ staticExperience }: GuestbookProps) {
   const { locale, copy } = useLocale()
   const [entries, setEntries] = useState<GuestbookEntry[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -183,7 +176,6 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
         message: fields.message,
         emoji: fields.emoji,
         photo,
-        turnstileToken: 'bypass',
       })
       setEntries((current) => [created.entry, ...current])
       if (created.photoStatus === 'pending') {
@@ -226,7 +218,7 @@ export function Guestbook({ staticExperience, siteKey = publicTurnstileSiteKey }
     setReactionSubmitting(true)
     setPendingReactionKeys((current) => new Set(current).add(key))
     setReactionStatus(null)
-    void toggleReaction({ entryId, emoji: reactionEmoji, active, turnstileToken: 'bypass' })
+    void toggleReaction({ entryId, emoji: reactionEmoji, active })
       .then((result) => {
         setEntries((current) => updateReaction(current, result.entryId, result.emoji, result.total))
         setActiveReactionKeys((current) => {

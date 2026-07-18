@@ -8,11 +8,10 @@ import {
   getVisitor,
   listPublicGuestbookEntries,
   serializePublicEntry,
-  verifyTurnstile,
   type GuestbookEnv,
   type GuestbookVisitor,
 } from '../../_lib/guestbook'
-import { guestbookError, guestbookJson, getTurnstileToken, turnstileOptions } from '../../_lib/http'
+import { guestbookError, guestbookJson } from '../../_lib/http'
 import { guestbookLimits } from '../../../src/guestbook/contracts'
 import { GuestbookValidationError, parseEntryFields, validatePhoto } from '../../../src/guestbook/validation'
 
@@ -52,7 +51,6 @@ function optionalPhoto(value: FormDataEntryValue | null): File | null {
 async function parseEntryRequest(request: Request): Promise<{
   fields: ReturnType<typeof parseEntryFields>
   photo: File | null
-  turnstileToken: unknown
 }> {
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
@@ -76,10 +74,6 @@ async function parseEntryRequest(request: Request): Promise<{
       emoji: form.get('emoji'),
     }),
     photo: optionalPhoto(form.get('photo')),
-    turnstileToken: getTurnstileToken({
-      'cf-turnstile-response': form.get('cf-turnstile-response'),
-      turnstileToken: form.get('turnstileToken'),
-    }),
   }
 }
 
@@ -216,12 +210,6 @@ export const onRequestPost: PagesFunction<GuestbookEnv> = async (context) => {
     const submission = await parseEntryRequest(context.request)
     const preparedPhoto = submission.photo === null ? null : await preparePhoto(submission.photo)
     const rateIdentity = await getRateIdentity(context.request, context.env.GUESTBOOK_HMAC_KEY)
-    await verifyTurnstile(
-      submission.turnstileToken,
-      context.env.TURNSTILE_SECRET_KEY,
-      turnstileOptions(context.env),
-    )
-
     await enforceRateLimit(context.env, {
       fingerprintHash: rateIdentity,
       action: 'entry',

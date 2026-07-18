@@ -133,13 +133,11 @@ export async function createGuestbookEntry(input: {
   message: string
   emoji: GuestbookEmoji | ''
   photo: File | null
-  turnstileToken: string
 }): Promise<CreatedGuestbookEntry> {
   const body = new FormData()
   body.set('nickname', input.nickname)
   body.set('message', input.message)
   body.set('emoji', input.emoji)
-  body.set('cf-turnstile-response', input.turnstileToken)
   if (input.photo !== null) body.set('photo', input.photo)
 
   const payload = await readJson(await fetch('/api/guestbook', {
@@ -163,7 +161,6 @@ export async function toggleReaction(input: {
   entryId: string
   emoji: GuestbookEmoji
   active: boolean
-  turnstileToken: string
 }): Promise<ReactionResult> {
   const payload = await readJson(await fetch(`/api/guestbook/${encodeURIComponent(input.entryId)}/reactions`, {
     method: 'POST',
@@ -171,7 +168,6 @@ export async function toggleReaction(input: {
     body: JSON.stringify({
       emoji: input.emoji,
       active: input.active,
-      'cf-turnstile-response': input.turnstileToken,
     }),
   }))
 
