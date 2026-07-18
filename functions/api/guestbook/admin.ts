@@ -1,4 +1,4 @@
-+import {
+import {
   toEntryRecord,
   toReactionTotal,
   publicPhotoUrl,
