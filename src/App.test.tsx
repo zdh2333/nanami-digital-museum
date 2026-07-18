@@ -149,6 +149,20 @@ describe('Nanami Cat museum shell', () => {
     expect(screen.getByRole('link', { name: '回到他的领地' })).toHaveAttribute('href', '#hero')
   })
 
+  it('keeps public contact details at the bottom of the museum', () => {
+    renderApp()
+
+    const footer = screen.getByRole('contentinfo')
+    expect(within(footer).getByRole('link', { name: 'Email zhoudonghao2333@gmail.com' })).toHaveAttribute(
+      'href',
+      'mailto:zhoudonghao2333@gmail.com',
+    )
+    expect(within(footer).getByRole('link', { name: 'QQ 769072617' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('uin=769072617'),
+    )
+  })
+
   it('uses a real 2D Nanami face instead of synthetic closing eyes', () => {
     const { container } = renderApp()
     const closing = container.querySelector('#closing')

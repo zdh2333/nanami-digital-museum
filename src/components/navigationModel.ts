@@ -1,6 +1,6 @@
 import type { MuseumCopy } from '../i18n/copy'
 
-export type NavigationKey = keyof Pick<MuseumCopy['nav'], 'home' | 'profile' | 'notes' | 'archive' | 'timeline' | 'guestbook'>
+export type NavigationKey = keyof Pick<MuseumCopy['nav'], 'home' | 'profile' | 'notes' | 'archive' | 'timeline' | 'guestbook' | 'contact'>
 
 export const navigationItems: ReadonlyArray<{ key: NavigationKey; href: string }> = [
   { key: 'home', href: '#hero' },
@@ -9,4 +9,5 @@ export const navigationItems: ReadonlyArray<{ key: NavigationKey; href: string }
   { key: 'archive', href: '#mood-archive' },
   { key: 'timeline', href: '#living-archive' },
   { key: 'guestbook', href: '#guestbook' },
+  { key: 'contact', href: '#contact' },
 ]

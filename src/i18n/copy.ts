@@ -50,6 +50,7 @@ export interface MuseumCopy {
     archive: string
     timeline: string
     guestbook: string
+    contact: string
     menu: string
     close: string
     language: string
@@ -162,6 +163,14 @@ export interface MuseumCopy {
     title: string
     returnLink: string
   }
+  contact: {
+    eyebrow: string
+    title: string
+    summary: string
+    emailLabel: string
+    qqLabel: string
+    note: string
+  }
 }
 
 interface NoteCopy {
@@ -179,6 +188,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       archive: 'Archive',
       timeline: 'Timeline',
       guestbook: 'Guestbook',
+      contact: 'Contact',
       menu: 'Menu',
       close: 'Close',
       language: 'Language',
@@ -318,6 +328,14 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       title: 'Nanami is probably watching you.',
       returnLink: 'Return to his territory',
     },
+    contact: {
+      eyebrow: 'Contact · 08',
+      title: 'Say hello to Nanami.',
+      summary: 'Questions, collaborations, or a cat photo you would like to submit? Reach out.',
+      emailLabel: 'Email',
+      qqLabel: 'QQ',
+      note: 'Nanami Cat · a living, growing archive',
+    },
   },
   'zh-CN': {
     nav: {
@@ -327,6 +345,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       archive: '档案',
       timeline: '时间线',
       guestbook: '留言簿',
+      contact: '联系',
       menu: '菜单',
       close: '关闭',
       language: '语言',
@@ -464,6 +483,14 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       eyebrow: '未完待续 · 07',
       title: 'Nanami 可能正在看着你。',
       returnLink: '回到他的领地',
+    },
+    contact: {
+      eyebrow: '联系 · 08',
+      title: '和 Nanami 打个招呼。',
+      summary: '想交流、合作，或投稿一张猫咪照片？欢迎联系。',
+      emailLabel: '邮箱',
+      qqLabel: 'QQ',
+      note: 'Nanami Cat · 一座仍在生长的生活档案',
     },
   },
 }

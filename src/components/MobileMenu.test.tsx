@@ -44,6 +44,7 @@ describe('MobileMenu', () => {
     expect(within(dialog).getByRole('link', { name: 'Archive' })).toHaveAttribute('href', '#mood-archive')
     expect(within(dialog).getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '#living-archive')
     expect(within(dialog).getByRole('link', { name: 'Guestbook' })).toHaveAttribute('href', '#guestbook')
+    expect(within(dialog).getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '#contact')
     expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus()
   })
 

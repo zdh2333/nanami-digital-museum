@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Closing } from './components/Closing'
+import { Contact } from './components/Contact'
 import { FieldNotes } from './components/FieldNotes'
 import { Guestbook } from './components/Guestbook'
 import { HeroPortrait } from './components/HeroPortrait'
@@ -55,6 +56,7 @@ export function App() {
         <Guestbook staticExperience={staticExperience} />
         <Closing staticExperience={staticExperience} />
       </main>
+      <Contact />
     </>
   )
 }
