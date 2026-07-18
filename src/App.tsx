@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Closing } from './components/Closing'
 import { FieldNotes } from './components/FieldNotes'
 import { Guestbook } from './components/Guestbook'
@@ -7,6 +8,7 @@ import { MoodArchive } from './components/MoodArchive'
 import { Navigation } from './components/Navigation'
 import { Profile } from './components/Profile'
 import { SeoMetadata } from './components/SeoMetadata'
+import { Admin } from './components/Admin'
 import { useReducedExperience } from './hooks/useReducedExperience'
 import { useLocale } from './i18n/LocaleProvider'
 
@@ -14,6 +16,16 @@ export function App() {
   const staticExperience = useReducedExperience()
   const { copy } = useLocale()
   const [heroLead, heroFollow] = copy.hero.title.split('\n')
+  const [isAdmin, setIsAdmin] = useState(() => window.location.hash === '#admin' || window.location.pathname === '/admin')
+
+  useEffect(() => {
+    const syncAdminRoute = () => setIsAdmin(window.location.hash === '#admin' || window.location.pathname === '/admin')
+    window.addEventListener('hashchange', syncAdminRoute)
+    return () => window.removeEventListener('hashchange', syncAdminRoute)
+  }, [])
+
+  if (isAdmin) return <Admin />
+
   return (
     <>
       <SeoMetadata />

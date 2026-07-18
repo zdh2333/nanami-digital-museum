@@ -13,6 +13,8 @@ export interface GuestbookEnv {
   DB: D1Database
   PHOTOS: R2Bucket
   IMAGE_SANITIZER: Fetcher
+  /** Cloudflare Pages secret; intentionally never declared in wrangler.toml. */
+  ADMIN_PASSWORD?: string
   GUESTBOOK_HMAC_KEY: string
 }
 
