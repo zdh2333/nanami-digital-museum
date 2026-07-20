@@ -5,7 +5,7 @@ import { SectionReveal } from './SectionReveal'
 
 const notes = [
   { copyKey: 'eyes', archiveId: 'nanami-photo-003' },
-  { copyKey: 'tail' },
+  { copyKey: 'tail', archiveId: 'nanami-photo-020' },
   { copyKey: 'collar', archiveId: 'nanami-photo-002' },
   { copyKey: 'doors', archiveId: 'nanami-photo-007' },
 ] as const

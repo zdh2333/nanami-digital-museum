@@ -2323,7 +2323,9 @@ a {
   }
 
   .mobile-menu {
-    z-index: 45;
+    /* The menu is a full-screen dialog on phones. Keep it above the fixed
+       site header so the closed "菜单" control cannot show through behind it. */
+    z-index: 60;
     inset: 0;
     min-height: 100dvh;
     padding: 6.15rem 1.25rem max(1.5rem, env(safe-area-inset-bottom));

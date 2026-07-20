@@ -126,16 +126,16 @@ describe('Nanami Cat museum shell', () => {
     )
   })
 
-  it('uses reviewed evidence for three notes and keeps the confirmed tail text-only', () => {
+  it('uses reviewed evidence for all four field notes', () => {
     renderApp()
     const section = document.querySelector('#field-notes')
     expect(section).not.toBeNull()
 
     const notes = within(section as HTMLElement).getAllByRole('group')
     expect(notes).toHaveLength(4)
-    expect(notes.filter((note) => within(note).queryByRole('img'))).toHaveLength(3)
-    expect(within(notes[1]).queryByRole('img')).not.toBeInTheDocument()
-    expect(within(notes[1]).getByText('Owner-confirmed', { exact: true })).toBeVisible()
+    expect(notes.filter((note) => within(note).queryByRole('img'))).toHaveLength(4)
+    expect(within(notes[1]).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-020-640.webp')
+    expect(within(notes[1]).getByText('Observed', { exact: true })).toBeVisible()
   })
 
   it('turns the living archive collections into clear, counted links', () => {

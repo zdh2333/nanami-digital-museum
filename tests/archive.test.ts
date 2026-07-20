@@ -266,7 +266,7 @@ describe('archive collection helpers', () => {
 
 describe('archiveItems', () => {
   it('exports the curated collection as an immutable validated archive', () => {
-    expect(archiveItems).toHaveLength(22)
+    expect(archiveItems).toHaveLength(23)
     expect(archiveItems.every(({ faceChecked }) => faceChecked)).toBe(true)
     expect(Object.isFrozen(archiveItems)).toBe(true)
     expect(archiveItems.every(Object.isFrozen)).toBe(true)

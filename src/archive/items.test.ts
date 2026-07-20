@@ -9,16 +9,16 @@ const expectedIds = [
   'nanami-photo-009', 'nanami-photo-012', 'nanami-photo-014', 'nanami-photo-015',
   'nanami-photo-016', 'nanami-meme-001', 'nanami-meme-002', 'nanami-meme-004',
   'nanami-meme-005', 'nanami-meme-007', 'nanami-meme-008', 'nanami-photo-017',
-  'nanami-photo-018', 'nanami-photo-019',
+  'nanami-photo-018', 'nanami-photo-019', 'nanami-photo-020',
 ] as const
 
 describe('curated Nanami archive', () => {
-  it('preserves all 16 photo and 6 meme IDs in source order', () => {
+  it('preserves all 17 photo and 6 meme IDs in source order', () => {
     expect(archiveItems.map(({ id }) => id)).toEqual(expectedIds)
-    expect(archiveItems.filter(({ type }) => type === 'photo')).toHaveLength(16)
+    expect(archiveItems.filter(({ type }) => type === 'photo')).toHaveLength(17)
     expect(archiveItems.filter(({ type }) => type === 'meme')).toHaveLength(6)
     expect(archiveItems.map(({ order }) => order)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 14, 15, 16, 17, 18, 20, 21, 23, 24, 25, 26, 27,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 14, 15, 16, 17, 18, 20, 21, 23, 24, 25, 26, 27, 28,
     ])
   })
 
@@ -33,6 +33,7 @@ describe('curated Nanami archive', () => {
       { id: 'nanami-photo-017', captureDate: '2026-06-19' },
       { id: 'nanami-photo-018', captureDate: '2026-06-22' },
       { id: 'nanami-photo-019', captureDate: '2026-06-22' },
+      { id: 'nanami-photo-020', captureDate: '2023-09-22' },
     ])
   })
 
@@ -77,8 +78,8 @@ describe('curated Nanami archive', () => {
     expect(portraits.every(({ type }) => type === 'photo')).toBe(true)
 
     expect(collectionCounts(archiveItems)).toEqual({
-      all: 22,
-      photos: 16,
+      all: 23,
+      photos: 17,
       memes: 6,
       portraits: portraits.length,
     })

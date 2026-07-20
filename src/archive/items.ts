@@ -184,6 +184,15 @@ const archiveSeed: readonly ArchiveItemInput[] = [
     story: text('The distance closes until his focused eyes fill the frame.', '距离一点点拉近，直到他专注的眼睛占满画面。'),
     faceChecked: true, featured: false, order: 27,
   },
+  {
+    id: 'nanami-photo-020', type: 'photo', collections: ['photos'],
+    src640: '/archive/photos/nanami-photo-020-640.webp', src1600: '/archive/photos/nanami-photo-020-1600.webp',
+    caption: text('The signature turn.', '独一无二的弯折。'),
+    alt: text('Nanami sitting on a carpet, with the right-angle bend at the tip of his tail visible to his left.', '七海坐在地毯上，画面左侧能清楚看到他尾巴尖的直角弯折。'),
+    captureDate: '2023-09-22',
+    story: text('At the end of the tail, the small angular turn is plainly in view.', '尾巴的尽头，那道小小的直角弯折清楚地留在画面里。'),
+    faceChecked: true, featured: false, order: 28,
+  },
 ]
 
 export const archiveItems = validateArchive(archiveSeed)

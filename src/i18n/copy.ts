@@ -237,7 +237,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       tail: {
         term: 'Right-angle tail tip',
         detail: 'The tip bends into his unmistakable signature.',
-        observation: 'The bend remains visible whether he sits or walks.',
+        observation: 'This photograph shows the bend clearly.',
       },
       collar: {
         term: 'Red collar',
@@ -393,7 +393,7 @@ export const copy: Readonly<Record<Locale, MuseumCopy>> = {
       tail: {
         term: '直角尾巴尖',
         detail: '尾巴尖的弯折是他独一无二的标志。',
-        observation: '无论坐着还是走动，都能看到这个弯角。',
+        observation: '这张照片里，尾巴尖的弯角清楚可见。',
       },
       collar: {
         term: '红色项圈',

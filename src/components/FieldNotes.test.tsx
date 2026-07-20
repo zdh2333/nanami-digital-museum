@@ -22,22 +22,23 @@ describe('FieldNotes', () => {
     expect(within(section).getByRole('heading', { name: 'Ways to recognize Nanami.' })).toBeVisible()
     expect(notes).toHaveLength(4)
     expect(within(notes[0]).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-003-640.webp')
+    expect(within(notes[1]).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-020-640.webp')
     expect(within(notes[2]).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-002-640.webp')
     expect(within(notes[3]).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-007-640.webp')
     expect(within(notes[0]).getByText('Yellow-green eyes')).toBeVisible()
     expect(within(notes[3]).getByText('Zero closed doors')).toBeVisible()
   })
 
-  it('keeps the owner-confirmed tail observation text-only', () => {
+  it('uses a reviewed photograph to document the tail observation', () => {
     const section = renderNotes('en')
     const tail = within(section).getByRole('group', { name: 'Right-angle tail tip' })
 
-    expect(tail).toHaveClass('field-note--text-only')
-    expect(within(tail).queryByRole('img')).not.toBeInTheDocument()
-    expect(within(tail).getByText('Owner-confirmed', { exact: true })).toBeVisible()
+    expect(tail).not.toHaveClass('field-note--text-only')
+    expect(within(tail).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-020-640.webp')
+    expect(within(tail).getByText('Observed', { exact: true })).toBeVisible()
   })
 
-  it('renders the complete Simplified Chinese chapter including the owner label', () => {
+  it('renders the complete Simplified Chinese chapter including the observed tail evidence', () => {
     const section = renderNotes('zh-CN')
     const tail = within(section).getByRole('group', { name: '直角尾巴尖' })
 
@@ -45,7 +46,7 @@ describe('FieldNotes', () => {
     expect(within(section).getByText('黄绿色眼睛')).toBeVisible()
     expect(within(section).getByText('红色项圈')).toBeVisible()
     expect(within(section).getByText('不许关门')).toBeVisible()
-    expect(within(tail).queryByRole('img')).not.toBeInTheDocument()
-    expect(within(tail).getByText('主人确认', { exact: true })).toBeVisible()
+    expect(within(tail).getByRole('img')).toHaveAttribute('src', '/archive/photos/nanami-photo-020-640.webp')
+    expect(within(tail).getByText('观察记录', { exact: true })).toBeVisible()
   })
 })
