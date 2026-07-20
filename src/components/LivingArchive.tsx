@@ -3,7 +3,6 @@ import type { MouseEvent } from 'react'
 import {
   collectionCounts,
   latestCaptureDate,
-  representativeItem,
 } from '../archive/collections'
 import { formatArchiveDate } from '../archive/date'
 import { archiveItems } from '../archive/items'
@@ -77,7 +76,9 @@ export function LivingArchive({
       </SectionReveal>
       <div className="living-archive__collections">
         {directory.map((collection) => {
-          const item = representativeItem(items, collection)
+          const previews = items
+            .filter((candidate) => candidate.collections.includes(collection))
+            .slice(0, 3)
           const name = copy.archive[collection]
           const href = collectionUrl(
             collection,
@@ -102,16 +103,18 @@ export function LivingArchive({
                 }}
               >
                 <span className="collection-line__preview">
-                  {item ? (
+                  {previews.map((preview, index) => (
                     <img
-                      src={item.src640}
-                      alt={item.alt[locale]}
+                      key={preview.id}
+                      className={`collection-line__image collection-line__image--${index + 1}`}
+                      src={preview.src640}
+                      alt={index === 0 ? preview.alt[locale] : ''}
                       width="640"
                       height="853"
                       loading="lazy"
                       decoding="async"
                     />
-                  ) : null}
+                  ))}
                 </span>
                 <span className="collection-line__count">{counts[collection]}</span>
                 <span className="collection-line__copy">

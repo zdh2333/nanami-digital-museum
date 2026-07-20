@@ -10,6 +10,7 @@ import { Navigation } from './components/Navigation'
 import { Profile } from './components/Profile'
 import { SeoMetadata } from './components/SeoMetadata'
 import { Admin } from './components/Admin'
+import { ArchiveRibbon } from './components/ArchiveRibbon'
 import { useReducedExperience } from './hooks/useReducedExperience'
 import { useLocale } from './i18n/LocaleProvider'
 
@@ -49,6 +50,7 @@ export function App() {
             </p>
           </div>
         </section>
+        <ArchiveRibbon staticExperience={staticExperience} />
         <Profile staticExperience={staticExperience} />
         <FieldNotes staticExperience={staticExperience} />
         <MoodArchive staticExperience={staticExperience} />

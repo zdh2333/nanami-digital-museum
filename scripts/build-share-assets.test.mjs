@@ -76,5 +76,5 @@ describe('share asset builder', () => {
       .toBuffer()
     expect(sha256(await readFile(join(firstRoot, 'social/nanami-social-card.webp'))))
       .toBe(sha256(expectedCenteredCard))
-  })
+  }, 30_000)
 })

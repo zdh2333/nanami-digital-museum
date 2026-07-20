@@ -183,6 +183,132 @@ a {
   scroll-margin-top: 5.5rem;
 }
 
+/* A photo-led transition after the hero. It deliberately reuses the reviewed
+   archive instead of importing the reference site's third-party GIFs. */
+.archive-ribbon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: clamp(0.7rem, 1.2vw, 1.25rem);
+  padding: clamp(3rem, 8vw, 7rem) 0 clamp(2rem, 5vw, 4.5rem);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #070907 0%, rgb(12 20 14 / 82%) 48%, #070907 100%);
+}
+
+.archive-ribbon::before,
+.archive-ribbon::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: min(12vw, 12rem);
+  content: '';
+  pointer-events: none;
+}
+
+.archive-ribbon::before {
+  left: 0;
+  background: linear-gradient(90deg, #070907, transparent);
+}
+
+.archive-ribbon::after {
+  right: 0;
+  background: linear-gradient(270deg, #070907, transparent);
+}
+
+.archive-ribbon__row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 12vw) minmax(0, 1fr);
+  gap: clamp(0.9rem, 2vw, 2.25rem);
+  align-items: center;
+}
+
+.archive-ribbon__label {
+  justify-self: end;
+  margin: 0;
+  color: var(--color-ink);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.archive-ribbon__viewport {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.archive-ribbon__track {
+  display: flex;
+  gap: clamp(0.65rem, 1.15vw, 1.1rem);
+  width: max-content;
+  padding-block: 0.3rem;
+  will-change: transform;
+  animation: archive-ribbon-forward 72s linear infinite;
+}
+
+.archive-ribbon__row--reverse .archive-ribbon__track {
+  animation-name: archive-ribbon-reverse;
+  animation-duration: 82s;
+}
+
+.archive-ribbon:hover .archive-ribbon__track {
+  animation-play-state: paused;
+}
+
+.archive-ribbon__frame {
+  position: relative;
+  flex: 0 0 clamp(9rem, 13vw, 14rem);
+  aspect-ratio: 1.32 / 1;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgb(144 165 143 / 25%);
+  background: #0d100d;
+}
+
+.archive-ribbon__frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.6) brightness(0.7) contrast(1.08);
+  transition: filter 360ms ease, transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.archive-ribbon__frame:hover img {
+  filter: saturate(0.84) brightness(0.9) contrast(1.04);
+  transform: scale(1.045);
+}
+
+.archive-ribbon__frame figcaption {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.6rem;
+  left: 0.7rem;
+  overflow: hidden;
+  color: rgb(241 237 226 / 84%);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.075em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.archive-ribbon[data-static-experience] .archive-ribbon__track {
+  animation-play-state: paused;
+}
+
+@keyframes archive-ribbon-forward {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes archive-ribbon-reverse {
+  from { transform: translate3d(-50%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
 .museum-header {
   position: fixed;
   z-index: 50;
@@ -1007,45 +1133,98 @@ a {
 }
 
 .living-archive__collections {
-  border-top: 1px solid rgb(144 165 143 / 34%);
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.7rem);
+  padding-bottom: clamp(2rem, 8vw, 7rem);
 }
 
 .collection-line {
-  min-height: clamp(8rem, 19vh, 12rem);
-  border-bottom: 1px solid rgb(144 165 143 / 34%);
+  position: sticky;
+  top: 6.5rem;
+  min-height: clamp(15rem, 33vh, 22rem);
+  overflow: hidden;
+  border: 1px solid rgb(144 165 143 / 34%);
+  background:
+    linear-gradient(120deg, rgb(144 165 143 / 10%), transparent 48%),
+    #0b0f0c;
+  box-shadow: 0 1.4rem 3.4rem rgb(0 0 0 / 20%);
 }
+
+.collection-line:nth-child(2) { top: 8rem; }
+.collection-line:nth-child(3) { top: 9.5rem; }
 
 .collection-line a {
   display: grid;
-  grid-template-columns: clamp(4.75rem, 7vw, 6.5rem) 2.5rem minmax(0, 1fr) 1.5rem;
-  gap: clamp(1rem, 2.5vw, 2rem);
+  grid-template-columns: minmax(11rem, 0.82fr) 2.5rem minmax(0, 1.18fr) 1.5rem;
+  gap: clamp(1rem, 2.5vw, 2.3rem);
   align-items: center;
   min-height: inherit;
-  padding: 1.25rem 0;
+  padding: clamp(1rem, 2.2vw, 2rem);
   color: inherit;
   text-decoration: none;
 }
 
 .collection-line__preview {
+  position: relative;
   display: block;
-  aspect-ratio: 1;
+  align-self: stretch;
+  min-height: 12rem;
   overflow: hidden;
   background: #0d100d;
 }
 
-.collection-line__preview img {
+.collection-line__image {
+  position: absolute;
   display: block;
-  width: 100%;
-  height: 100%;
+  border: 1px solid rgb(144 165 143 / 20%);
   object-fit: cover;
   filter: saturate(0.65) brightness(0.72);
-  transition: filter 450ms ease, transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: filter 450ms ease, transform 650ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease;
 }
 
-.collection-line a:hover .collection-line__preview img,
-.collection-line a:focus-visible .collection-line__preview img {
+.collection-line__image--1 {
+  z-index: 3;
+  inset: 0 19% 0 0;
+}
+
+.collection-line__image--2 {
+  z-index: 2;
+  top: 8%;
+  right: 0;
+  bottom: 8%;
+  width: 38%;
+  opacity: 0.76;
+  transform: rotate(3deg);
+}
+
+.collection-line__image--3 {
+  z-index: 1;
+  top: 17%;
+  right: 9%;
+  bottom: 17%;
+  width: 36%;
+  opacity: 0.44;
+  transform: rotate(-5deg);
+}
+
+.collection-line a:hover .collection-line__image,
+.collection-line a:focus-visible .collection-line__image {
   filter: saturate(0.9) brightness(0.92);
-  transform: scale(1.06);
+}
+
+.collection-line a:hover .collection-line__image--1,
+.collection-line a:focus-visible .collection-line__image--1 {
+  transform: scale(1.04);
+}
+
+.collection-line a:hover .collection-line__image--2,
+.collection-line a:focus-visible .collection-line__image--2 {
+  transform: translateX(-0.5rem) rotate(2deg);
+}
+
+.collection-line a:hover .collection-line__image--3,
+.collection-line a:focus-visible .collection-line__image--3 {
+  transform: translateX(-0.85rem) rotate(-4deg);
 }
 
 .collection-line a:focus-visible {
@@ -1395,6 +1574,92 @@ a {
 
   .closing__portrait img {
     object-position: 50% 18%;
+  }
+}
+
+/* The reference's moving rails and stacked work cards become direct, touchable
+   archive navigation on phones. This sits after the original mobile pass so it
+   remains the final responsive source of truth for the new components. */
+@media (max-width: 767px) {
+  .archive-ribbon {
+    gap: 0.65rem;
+    padding: 2.25rem 0 1.85rem;
+  }
+
+  .archive-ribbon::before,
+  .archive-ribbon::after {
+    width: 2rem;
+  }
+
+  .archive-ribbon__row {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .archive-ribbon__label {
+    justify-self: start;
+    margin-left: 1.25rem;
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .archive-ribbon__track {
+    gap: 0.6rem;
+    padding-left: 1.25rem;
+    animation-duration: 96s;
+  }
+
+  .archive-ribbon__row--reverse .archive-ribbon__track {
+    animation-duration: 108s;
+  }
+
+  .archive-ribbon__frame {
+    flex-basis: 8.7rem;
+  }
+
+  .archive-ribbon__frame figcaption {
+    font-size: 0.53rem;
+  }
+
+  .living-archive__collections {
+    gap: 0.9rem;
+    padding-bottom: 0;
+  }
+
+  .collection-line,
+  .collection-line:nth-child(2),
+  .collection-line:nth-child(3) {
+    position: relative;
+    top: auto;
+    min-height: 10.25rem;
+    box-shadow: none;
+  }
+
+  .collection-line a {
+    grid-template-columns: minmax(6.25rem, 0.75fr) 1.35rem minmax(0, 1.25fr) 1rem;
+    min-height: 10.25rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .collection-line__preview {
+    min-height: 8.75rem;
+  }
+
+  .collection-line__copy > span:last-child {
+    font-size: 0.72rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-ribbon__track {
+    animation-play-state: paused;
+  }
+
+  .archive-ribbon__frame img,
+  .collection-line__image,
+  .collection-line svg {
+    transition-duration: 0.01ms;
   }
 }
 
@@ -2333,5 +2598,19 @@ a {
 
   .contact__summary {
     font-size: 0.98rem;
+  }
+}
+
+/* Final mobile overrides for the new archive rail and stack. */
+@media (max-width: 767px) {
+  .collection-line a {
+    grid-template-columns: minmax(6.25rem, 0.75fr) 1.35rem minmax(0, 1.25fr) 1rem;
+    min-height: 10.25rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .collection-line__preview {
+    min-height: 8.75rem;
   }
 }

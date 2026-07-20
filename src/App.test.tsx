@@ -50,6 +50,18 @@ describe('Nanami Cat museum shell', () => {
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 
+  it('places a real-photo archive ribbon between the hero and the museum chapters', () => {
+    const { container } = renderApp()
+    const ribbon = container.querySelector('.archive-ribbon')
+    const hero = container.querySelector('#hero')
+    const presence = container.querySelector('#presence')
+
+    expect(ribbon).toHaveAttribute('aria-label', 'Collection')
+    expect(hero?.nextElementSibling).toBe(ribbon)
+    expect(ribbon?.nextElementSibling).toBe(presence)
+    expect(within(ribbon as HTMLElement).getAllByRole('img').length).toBeGreaterThan(4)
+  })
+
   it('shows a reviewed Nanami room photograph in the presence chapter', () => {
     renderApp()
 
