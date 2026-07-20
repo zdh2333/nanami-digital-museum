@@ -236,7 +236,6 @@ a {
   margin: 0;
   color: var(--color-ink);
   writing-mode: vertical-rl;
-  transform: rotate(180deg);
 }
 
 .archive-ribbon__viewport {
