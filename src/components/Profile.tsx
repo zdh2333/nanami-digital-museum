@@ -2,6 +2,7 @@ import { archiveItems } from '../archive/items'
 import { formatBirthplace } from '../i18n/copy'
 import { useLocale } from '../i18n/LocaleProvider'
 import { getNanamiAge, nanamiProfile } from '../profile/nanami'
+import { navigationItems } from './navigationModel'
 import { SectionReveal } from './SectionReveal'
 
 type ProfileProps = { staticExperience: boolean }
@@ -15,6 +16,8 @@ const profilePhoto = (() => {
 
   return item
 })()
+
+const profileIndex = navigationItems.slice(2, 6)
 
 export function Profile({ staticExperience }: ProfileProps) {
   const { locale, copy } = useLocale()
@@ -75,6 +78,24 @@ export function Profile({ staticExperience }: ProfileProps) {
           <span>{profileCopy.room}</span>
           <i />
         </div>
+      </SectionReveal>
+      <SectionReveal
+        className="presence__index"
+        delay={0.18}
+        staticExperience={staticExperience}
+      >
+        <p className="museum-label text-ink">{profileCopy.eyebrow}</p>
+        <nav aria-label={copy.nav.menu}>
+          {profileIndex.map(({ key, href }, index) => (
+            <a href={href} key={key}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{copy.nav[key]}</strong>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h13M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          ))}
+        </nav>
       </SectionReveal>
     </section>
   )

@@ -62,6 +62,20 @@ describe('Nanami Cat museum shell', () => {
     expect(within(ribbon as HTMLElement).getAllByRole('img').length).toBeGreaterThan(4)
   })
 
+  it('turns the hero transition into a numbered real-photo contact sheet', () => {
+    const { container } = renderApp()
+    const ribbon = container.querySelector('.archive-ribbon') as HTMLElement
+
+    expect(within(ribbon).getByText('17')).toBeVisible()
+    expect(within(ribbon).getByText('001')).toBeVisible()
+    expect(within(ribbon).getByText('012')).toBeVisible()
+    expect(within(ribbon).getAllByRole('img')).toHaveLength(12)
+    expect(within(ribbon).getByRole('link', { name: 'Photos' })).toHaveAttribute(
+      'href',
+      '?collection=photos#mood-archive',
+    )
+  })
+
   it('shows a reviewed Nanami room photograph in the presence chapter', () => {
     renderApp()
 

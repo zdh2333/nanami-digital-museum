@@ -68,6 +68,17 @@ describe('Nanami profile chapter', () => {
     expect(portrait).toHaveAttribute('loading', 'lazy')
   })
 
+  it('provides an in-chapter index for the four archive destinations', () => {
+    const section = renderProfile()
+    const index = section.querySelector('.presence__index')
+
+    expect(index).not.toBeNull()
+    expect(within(index as HTMLElement).getByRole('link', { name: '01 Field Notes' })).toHaveAttribute('href', '#field-notes')
+    expect(within(index as HTMLElement).getByRole('link', { name: '02 Archive' })).toHaveAttribute('href', '#mood-archive')
+    expect(within(index as HTMLElement).getByRole('link', { name: '03 Timeline' })).toHaveAttribute('href', '#living-archive')
+    expect(within(index as HTMLElement).getByRole('link', { name: '04 Guestbook' })).toHaveAttribute('href', '#guestbook')
+  })
+
   it('localizes the canonical birthplace components instead of storing a duplicate fact', () => {
     expect(copy.en.profile).not.toHaveProperty('birthplaceValue')
     expect(copy['zh-CN'].profile).not.toHaveProperty('birthplaceValue')
