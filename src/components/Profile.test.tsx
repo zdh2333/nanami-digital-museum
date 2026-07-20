@@ -66,6 +66,10 @@ describe('Nanami profile chapter', () => {
     expect(portrait).toHaveAttribute('src', '/archive/photos/nanami-photo-002-640.webp')
     expect(portrait).toHaveAttribute('srcset', expect.stringContaining('nanami-photo-002-1600.webp'))
     expect(portrait).toHaveAttribute('loading', 'lazy')
+
+    const backdrop = section.querySelector('.presence__backdrop img')
+    expect(backdrop).toHaveAttribute('src', '/archive/photos/nanami-photo-003-1600.webp')
+    expect(section.querySelector('.presence__orbit')).toBeNull()
   })
 
   it('provides an in-chapter index for the four archive destinations', () => {

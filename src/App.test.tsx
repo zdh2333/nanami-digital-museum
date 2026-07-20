@@ -62,20 +62,16 @@ describe('Nanami Cat museum shell', () => {
     expect(within(ribbon as HTMLElement).getAllByRole('img').length).toBeGreaterThan(4)
   })
 
-  it('turns the hero transition into a numbered real-photo contact sheet', () => {
+  it('keeps the archive transition as two opposing real-photo rails', () => {
     const { container } = renderApp()
     const ribbon = container.querySelector('.archive-ribbon') as HTMLElement
 
-    expect(within(ribbon).getByText('17')).toBeVisible()
-    expect(within(ribbon).getAllByText('001')).toHaveLength(2)
-    expect(within(ribbon).getAllByText('012')).toHaveLength(2)
-    expect(within(ribbon).getAllByRole('img')).toHaveLength(12)
-    expect(ribbon.querySelectorAll('.archive-ribbon__frame')).toHaveLength(24)
-    expect(ribbon.querySelectorAll('figure[aria-hidden="true"]')).toHaveLength(12)
-    expect(within(ribbon).getByRole('link', { name: 'Photos' })).toHaveAttribute(
-      'href',
-      '?collection=photos#mood-archive',
-    )
+    expect(ribbon.querySelectorAll('.archive-ribbon__row')).toHaveLength(2)
+    expect(ribbon.querySelector('.archive-ribbon__row--forward')).not.toBeNull()
+    expect(ribbon.querySelector('.archive-ribbon__row--reverse')).not.toBeNull()
+    expect(within(ribbon).getAllByRole('img')).toHaveLength(14)
+    expect(within(ribbon).getByText('Photos')).toBeVisible()
+    expect(within(ribbon).getByText('Memes')).toBeVisible()
   })
 
   it('shows a reviewed Nanami room photograph in the presence chapter', () => {

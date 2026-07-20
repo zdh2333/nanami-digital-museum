@@ -1,4 +1,3 @@
-import { collectionCounts } from '../archive/collections'
 import { archiveItems } from '../archive/items'
 import { useLocale } from '../i18n/LocaleProvider'
 
@@ -6,15 +5,61 @@ type ArchiveRibbonProps = {
   staticExperience: boolean
 }
 
-const contactFrames = archiveItems
+const photoFrames = archiveItems
   .filter((item) => item.type === 'photo')
-  .slice(0, 12)
+  .slice(0, 8)
 
-const loopingContactFrames = [...contactFrames, ...contactFrames]
+const memeFrames = archiveItems
+  .filter((item) => item.type === 'meme')
+  .slice(0, 6)
+
+function ArchiveRibbonRow({
+  items,
+  direction,
+  label,
+  locale,
+}: {
+  items: typeof archiveItems
+  direction: 'forward' | 'reverse'
+  label: string
+  locale: 'en' | 'zh-CN'
+}) {
+  const loop = [...items, ...items]
+
+  return (
+    <div className={`archive-ribbon__row archive-ribbon__row--${direction}`}>
+      <p className="archive-ribbon__label museum-label">{label}</p>
+      <div className="archive-ribbon__viewport">
+        <div className="archive-ribbon__track">
+          {loop.map((item, index) => {
+            const duplicate = index >= items.length
+
+            return (
+              <figure
+                className="archive-ribbon__frame"
+                key={`${item.id}-${index}`}
+                aria-hidden={duplicate || undefined}
+              >
+                <img
+                  src={item.src640}
+                  alt={duplicate ? '' : item.alt[locale]}
+                  width="640"
+                  height="853"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <figcaption>{item.caption[locale]}</figcaption>
+              </figure>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ArchiveRibbon({ staticExperience }: ArchiveRibbonProps) {
   const { locale, copy } = useLocale()
-  const counts = collectionCounts(archiveItems)
 
   return (
     <aside
@@ -22,52 +67,18 @@ export function ArchiveRibbon({ staticExperience }: ArchiveRibbonProps) {
       aria-label={copy.archive.ribbonLabel}
       data-static-experience={staticExperience || undefined}
     >
-      <div className="archive-ribbon__header">
-        <p className="archive-ribbon__label museum-label">{copy.archive.ribbonLabel}</p>
-        <p className="archive-ribbon__counter">
-          <span>{String(counts.photos).padStart(2, '0')}</span>
-          {copy.archive.photos}
-        </p>
-      </div>
-
-      <div className="archive-ribbon__viewport">
-        <div className="archive-ribbon__track">
-          {loopingContactFrames.map((item, index) => {
-            const duplicate = index >= contactFrames.length
-
-            return (
-            <figure
-              className="archive-ribbon__frame"
-              key={`${item.id}-${index}`}
-              aria-hidden={duplicate || undefined}
-            >
-              <span className="archive-ribbon__number" aria-hidden="true">
-                {String((index % contactFrames.length) + 1).padStart(3, '0')}
-              </span>
-              <img
-                src={item.src640}
-                alt={duplicate ? '' : item.alt[locale]}
-                width="640"
-                height="853"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>{item.caption[locale]}</figcaption>
-            </figure>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="archive-ribbon__footer">
-        <span>{copy.archive.photos}</span>
-        <a href="?collection=photos#mood-archive">
-          {copy.archive.photos}
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M5 12h13M13 6l6 6-6 6" />
-          </svg>
-        </a>
-      </div>
+      <ArchiveRibbonRow
+        items={photoFrames}
+        direction="forward"
+        label={copy.archive.photos}
+        locale={locale}
+      />
+      <ArchiveRibbonRow
+        items={memeFrames}
+        direction="reverse"
+        label={copy.archive.memes}
+        locale={locale}
+      />
     </aside>
   )
 }

@@ -17,6 +17,16 @@ const profilePhoto = (() => {
   return item
 })()
 
+const profileBackdropPhoto = (() => {
+  const item = archiveItems.find((archiveItem) => archiveItem.id === 'nanami-photo-003')
+
+  if (!item) {
+    throw new Error('The reviewed Nanami profile backdrop photograph is missing.')
+  }
+
+  return item
+})()
+
 const profileIndex = navigationItems.slice(2, 6)
 
 export function Profile({ staticExperience }: ProfileProps) {
@@ -34,6 +44,9 @@ export function Profile({ staticExperience }: ProfileProps) {
 
   return (
     <section id="presence" data-museum-section="presence" className="anchor-target museum-section presence" aria-labelledby="presence-title">
+      <div className="presence__backdrop" aria-hidden="true">
+        <img src={profileBackdropPhoto.src1600} alt="" width="1600" height="2133" decoding="async" />
+      </div>
       <SectionReveal className="presence__copy" staticExperience={staticExperience}>
         <p className="museum-label text-ink">{profileCopy.eyebrow}</p>
         <h2 id="presence-title">{profileCopy.title}</h2>
@@ -74,10 +87,6 @@ export function Profile({ staticExperience }: ProfileProps) {
             <span>{profileCopy.roomCaption}</span>
           </figcaption>
         </figure>
-        <div className="presence__orbit" aria-hidden="true">
-          <span>{profileCopy.room}</span>
-          <i />
-        </div>
       </SectionReveal>
       <SectionReveal
         className="presence__index"
