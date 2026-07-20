@@ -236,10 +236,18 @@ a {
 
 .archive-ribbon__track {
   display: grid;
-  grid-template-columns: repeat(12, minmax(6.8rem, 1fr));
-  min-width: 72rem;
+  grid-template-columns: repeat(24, minmax(6.8rem, 1fr));
+  min-width: 144rem;
   border-top: 1px solid rgb(144 165 143 / 24%);
   border-left: 1px solid rgb(144 165 143 / 24%);
+  will-change: transform;
+  animation: archive-contact-sheet 88s linear infinite;
+}
+
+.archive-ribbon:hover .archive-ribbon__track,
+.archive-ribbon:focus-within .archive-ribbon__track,
+.archive-ribbon[data-static-experience] .archive-ribbon__track {
+  animation-play-state: paused;
 }
 
 .archive-ribbon__frame {
@@ -322,6 +330,11 @@ a {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
+}
+
+@keyframes archive-contact-sheet {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
 
 .museum-header {
@@ -1676,8 +1689,8 @@ a {
   }
 
   .archive-ribbon__track {
-    grid-template-columns: repeat(12, minmax(5.9rem, 1fr));
-    min-width: 70.8rem;
+    grid-template-columns: repeat(24, minmax(5.9rem, 1fr));
+    min-width: 141.6rem;
   }
 
   .archive-ribbon__frame {
@@ -1720,7 +1733,7 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .archive-ribbon__track {
-    animation-play-state: paused;
+    animation: none;
   }
 
   .archive-ribbon__frame img,

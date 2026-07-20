@@ -67,9 +67,11 @@ describe('Nanami Cat museum shell', () => {
     const ribbon = container.querySelector('.archive-ribbon') as HTMLElement
 
     expect(within(ribbon).getByText('17')).toBeVisible()
-    expect(within(ribbon).getByText('001')).toBeVisible()
-    expect(within(ribbon).getByText('012')).toBeVisible()
+    expect(within(ribbon).getAllByText('001')).toHaveLength(2)
+    expect(within(ribbon).getAllByText('012')).toHaveLength(2)
     expect(within(ribbon).getAllByRole('img')).toHaveLength(12)
+    expect(ribbon.querySelectorAll('.archive-ribbon__frame')).toHaveLength(24)
+    expect(ribbon.querySelectorAll('figure[aria-hidden="true"]')).toHaveLength(12)
     expect(within(ribbon).getByRole('link', { name: 'Photos' })).toHaveAttribute(
       'href',
       '?collection=photos#mood-archive',

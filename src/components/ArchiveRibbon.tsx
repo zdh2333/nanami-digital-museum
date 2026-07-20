@@ -10,6 +10,8 @@ const contactFrames = archiveItems
   .filter((item) => item.type === 'photo')
   .slice(0, 12)
 
+const loopingContactFrames = [...contactFrames, ...contactFrames]
+
 export function ArchiveRibbon({ staticExperience }: ArchiveRibbonProps) {
   const { locale, copy } = useLocale()
   const counts = collectionCounts(archiveItems)
@@ -30,14 +32,21 @@ export function ArchiveRibbon({ staticExperience }: ArchiveRibbonProps) {
 
       <div className="archive-ribbon__viewport">
         <div className="archive-ribbon__track">
-          {contactFrames.map((item, index) => (
-            <figure className="archive-ribbon__frame" key={item.id}>
+          {loopingContactFrames.map((item, index) => {
+            const duplicate = index >= contactFrames.length
+
+            return (
+            <figure
+              className="archive-ribbon__frame"
+              key={`${item.id}-${index}`}
+              aria-hidden={duplicate || undefined}
+            >
               <span className="archive-ribbon__number" aria-hidden="true">
-                {String(index + 1).padStart(3, '0')}
+                {String((index % contactFrames.length) + 1).padStart(3, '0')}
               </span>
               <img
                 src={item.src640}
-                alt={item.alt[locale]}
+                alt={duplicate ? '' : item.alt[locale]}
                 width="640"
                 height="853"
                 loading="lazy"
@@ -45,7 +54,8 @@ export function ArchiveRibbon({ staticExperience }: ArchiveRibbonProps) {
               />
               <figcaption>{item.caption[locale]}</figcaption>
             </figure>
-          ))}
+            )
+          })}
         </div>
       </div>
 
